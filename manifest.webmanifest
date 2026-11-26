@@ -1,0 +1,11 @@
+{
+  "name": "Nhật Ký Thám Hiểm",
+  "short_name": "Thám Hiểm",
+  "description": "Khám phá những chuyện lịch sử ít ai biết.",
+  "lang": "vi",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#efe2c4",
+  "theme_color": "#efe2c4",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

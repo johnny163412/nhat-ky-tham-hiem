@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nhật Ký Thám Hiểm</title>
+  <meta name="description" content="Khám phá những chuyện lịch sử ít ai biết, như lật từng trang nhật ký của một nhà thám hiểm.">
+  <meta name="theme-color" content="#efe2c4">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Playfair+Display:wght@600&family=Charm&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="style.css">
+  <!-- set candlelight mode before first paint: saved choice, else the device setting -->
+  <script>try { document.documentElement.dataset.theme = localStorage.getItem("nhatky-giao-dien") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch {}</script>
+</head>
+<body>
+  <!-- paper filters: #torn roughens card edges, #smudge makes stamp ink uneven -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <filter id="torn" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="4" seed="7"/><feDisplacementMap in="SourceGraphic" scale="9"/></filter>
+    <filter id="smudge"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/><feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.5" result="holes"/><feComposite in="SourceGraphic" in2="holes" operator="in" result="ink"/><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="9" result="w"/><feDisplacementMap in="ink" in2="w" scale="2.5"/></filter>
+  </svg>
+  <header class="masthead">
+    <a class="brand" href="#/">Nhật Ký Thám Hiểm</a>
+    <p class="tagline">Những trang sử ít ai lật tới</p>
+    <button id="random" class="compass" type="button" aria-label="Bất ngờ đi: mở một chuyện ngẫu nhiên">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21"/><circle cx="24" cy="24" r="16" stroke-dasharray="2 3"/><path d="M24 7 29 24 24 41 19 24Z"/><path d="M24 7 29 24H19Z" class="fill"/></svg>
+      <span>Bất ngờ đi</span>
+    </button>
+    <div class="fontsize" role="group" aria-label="Cỡ chữ, âm thanh và ánh sáng"><button type="button" data-step="-1" aria-label="Chữ nhỏ hơn">A−</button><button type="button" data-step="1" aria-label="Chữ to hơn">A+</button><button type="button" id="sound-toggle" class="sound" aria-pressed="true">♪</button><button type="button" id="theme-toggle" aria-pressed="false">☾</button></div>
+    <nav class="tabs"><a href="#/" data-view="map">Bản đồ</a><a href="#/nhat-ky" data-view="feed">Nhật ký</a><a href="#/dong-thoi-gian" data-view="timeline">Thời gian</a><a href="#/ho-chieu" data-view="passport">Hộ chiếu</a></nav>
+  </header>
+  <section id="map-view" hidden>
+    <div id="map" role="application" aria-label="Bản đồ thế giới với các câu chuyện lịch sử. Phóng to để thấy từng câu chuyện."></div>
+    <div class="era">
+      <label for="era-range">Thời đại: <strong id="era-name">Mọi thời đại</strong> <span id="era-count"></span></label>
+      <small id="era-vn" class="era-vn" aria-live="polite"></small>
+      <div class="era-row">
+        <input id="era-range" type="range" min="0" step="1" list="era-ticks">
+        <datalist id="era-ticks"></datalist>
+        <button id="era-all" class="chip" type="button">Tất cả</button>
+      </div>
+      <div class="era-row">
+        <label for="journey">Hành trình:</label>
+        <select id="journey" class="chip"><option value="">Không đi theo hành trình nào</option></select>
+      </div>
+      <div class="era-row">
+        <label for="oldmap">Bản đồ cổ:</label>
+        <select id="oldmap" class="chip"><option value="">Không phủ</option></select>
+        <input id="oldmap-fade" type="range" min="0" max="100" value="75" aria-label="Độ đậm của bản đồ cổ" hidden>
+      </div>
+      <p class="legend" aria-label="Chú giải dấu trên bản đồ"></p>
+      <small id="journey-note" aria-live="polite"></small>
+      <small id="border-note" aria-live="polite"></small>
+    </div>
+  </section>
+  <div id="progress" class="progress" hidden></div>
+  <dialog id="lightbox" class="lightbox" aria-label="Ảnh phóng to"><img alt=""><p></p><button type="button" class="chip" data-close>Đóng</button></dialog>
+  <main id="app" tabindex="-1"><p class="loading">Đang giở nhật ký…</p></main>
+  <footer class="foot">Nội dung tóm lược từ Wikipedia và các nguồn sử liệu; ảnh từ Wikimedia Commons, bấm vào nguồn ở từng trang để xem giấy phép.</footer>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

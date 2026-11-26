@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://johnny163412.github.io/nhat-ky-tham-hiem/sitemap.xml
