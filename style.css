@@ -152,11 +152,23 @@ a { color: var(--rust); }
 .corner.tl { left: -12px; top: -12px; transform: scaleY(-1); }
 .corner.tr { right: -12px; top: -12px; transform: scale(-1, -1); }
 .corner.br { right: -12px; bottom: -12px; transform: scaleX(-1); }
+/* title on a ribbon (Scroll-Ribbon by C. J. Fynn, CC0, Wikimedia Commons), like the cartouche on a chart */
+.cartouche {
+  position: absolute; z-index: 1000; top: 16px; left: 50%; transform: translateX(-50%); width: 300px; pointer-events: none;
+  text-align: center; color: var(--ink);
+}
+.cartouche::before {
+  content: ""; display: block; aspect-ratio: 500 / 147; background: url(sea/ribbon.png) center / contain no-repeat;
+  filter: sepia(.4) drop-shadow(1px 2px 2px rgba(40, 20, 5, .3));
+}
+.cartouche span { position: absolute; top: 47%; left: 0; right: 0; color: #3b2a1a; font: 600 .95rem var(--title); letter-spacing: .06em; }
+.cartouche small { display: block; margin-top: 0; font: italic .8rem var(--serif); letter-spacing: .1em; color: var(--ink-soft); text-shadow: 0 0 3px var(--paper), 0 0 6px var(--paper); }
 .neatline .leaflet-top .leaflet-control { margin-top: 44px; }
 .neatline .leaflet-left .leaflet-control { margin-left: 44px; }
 .neatline .leaflet-right .leaflet-control { margin-right: 44px; }
 @media (max-width: 560px) { .neatline { --g: 5px; outline-offset: 2px; } }
-@media (max-width: 560px) { .corner { width: 72px; height: 72px; } .neatline .leaflet-control { margin-top: 28px !important; margin-left: 28px !important; margin-right: 28px !important; } }
+@media (max-width: 560px) { .cartouche { width: 160px; top: 12px; } .cartouche span { font-size: .55rem; top: 45%; } .cartouche small { font-size: .62rem; }
+  .corner { width: 72px; height: 72px; } .neatline .leaflet-control { margin-top: 28px !important; margin-left: 28px !important; margin-right: 28px !important; } }
 .leaflet-tile-pane { filter: sepia(.35) saturate(.85) contrast(.95); }
 .leaflet-container { font-family: var(--serif); }
 .seal {
@@ -236,6 +248,7 @@ a { color: var(--rust); }
 .seal.stop { display: grid; place-items: center; font: 700 .95rem var(--serif); color: #fff6e4; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
 /* the whole decoration pane is multiplied onto tiles + fog, so ocean names read as printed ink */
 .leaflet-decor-pane { mix-blend-mode: multiply; }
+.sea-art img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: .7; filter: sepia(1); }
 .leaflet-relief-pane { mix-blend-mode: multiply; filter: sepia(.3) contrast(1.15); }
 .ocean svg { width: 100%; height: 100%; overflow: visible; }
 .ocean-name { font: italic 600 19px var(--serif); letter-spacing: .32em; text-transform: uppercase; fill: #4a3220; opacity: .75; }
@@ -247,6 +260,15 @@ a { color: var(--rust); }
 /* pin glyphs + legend */
 .seal svg { width: 14px; height: 14px; margin: 4px; fill: none; stroke: #fff6e4; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
 .seal { display: grid; place-items: center; }
+.map-legend {
+  background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); outline: 1px solid var(--ink); outline-offset: -5px;
+  padding: 6px 12px 8px; box-shadow: 2px 3px 8px rgba(40, 20, 5, .3); font-size: .85rem; max-width: 270px; line-height: 1.2;
+  margin-bottom: 44px !important;
+}
+.map-legend summary { font: 600 1rem var(--title); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; text-align: center; }
+.map-legend .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px; margin-top: 6px; }
+.map-legend img { width: 26px; height: 20px; object-fit: cover; object-position: 50% 85%; }
+.map-legend .seal { width: 18px; height: 18px; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 0; font-size: 1rem; }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend .seal { width: 22px; height: 22px; }

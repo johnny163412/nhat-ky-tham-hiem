@@ -554,6 +554,10 @@ const KINDS = {
 };
 const glyph = k => `<svg viewBox="0 0 12 12" aria-hidden="true">${KINDS[k][1]}</svg>`;
 
+// Sea creatures and ships from heraldic engravings (Fox-Davies 1904, de Bara 1581; public domain, Wikimedia Commons),
+// multiplied onto the map like the rest of the decor pane, so their white fill turns into the paper. [lat, lng, file, width px, mirrored]; kept clear of OCEANS names.
+const SEA_ART = [[-32, -18, "dragon", 96], [32, -165, "dolphin", 92, true], [-40, -115, "triton", 74], [-28, 62, "dolphin", 80],
+  [38, -42, "ship", 70], [-12, -150, "ship", 64, true], [-42, 140, "ship", 60]];
 // Ocean names lettered like an old chart: spaced italic capitals on a gentle arc, Latin name beneath.
 const OCEANS = [
   [8, -150, "Thái Bình Dương", "Mare Pacificum", 300],
@@ -681,6 +685,8 @@ function initMap() {
   document.getElementById("era-ticks").innerHTML = [...new Set(cards.map(c => snapOf(c.year)))].map(i => `<option value="${i}"></option>`).join("");
   map.createPane("decor").style.zIndex = 460; // above the fog; CSS multiplies the whole pane into the map so it reads as printed ink
   map.getPane("decor").style.pointerEvents = "none";
+  SEA_ART.forEach(([lat, lng, f, w, flip]) => L.marker([lat, lng], { pane: "decor", interactive: false, keyboard: false,
+    icon: L.divIcon({ className: "sea-art", iconSize: [w, w], html: `<img src="sea/${f}.png" alt=""${flip ? ' style="transform:scaleX(-1)"' : ""}>` }) }).addTo(map));
   OCEANS.forEach((o, i) => L.marker([o[0], o[1]], {
     pane: "decor", interactive: false, keyboard: false,
     icon: L.divIcon({ className: "ocean", iconSize: [Math.max(o[4], o[2].length * 22), 70], html: oceanLabel(o, i) }),
@@ -700,7 +706,18 @@ function initMap() {
     if (m.view) map.flyToBounds(m.view, { duration: 1.2 });
   };
   fade.oninput = () => oldLayer?.setOpacity(fade.value / 100);
-  document.querySelector(".legend").innerHTML = Object.keys(KINDS).map(k => `<span><i class="seal">${glyph(k)}</i>${KINDS[k][0]}</span>`).join("");
+  // Legend box in the corner of the chart, like the key on an old map; folded on phones so it doesn't cover the sea.
+  const Legend = L.Control.extend({ onAdd() {
+    const d = L.DomUtil.create("details", "map-legend");
+    d.open = !matchMedia("(max-width: 560px)").matches;
+    d.innerHTML = `<summary>Chú giải</summary><div class="legend">${
+      Object.keys(KINDS).map(k => `<span><i class="seal">${glyph(k)}</i>${KINDS[k][0]}</span>`).join("")}${
+      [["mount-2", "Núi"], ["mountSnow-1", "Núi tuyết"], ["hill-1", "Cao nguyên"], ["dune-1", "Sa mạc"], ["conifer-1", "Rừng thông"], ["palm-1", "Rừng nhiệt đới"]]
+        .map(([f, t]) => `<span><img src="relief/${f}.svg" alt="" width="26" height="26">${t}</span>`).join("")}</div>`;
+    L.DomEvent.disableClickPropagation(d); L.DomEvent.disableScrollPropagation(d);
+    return d;
+  } });
+  new Legend({ position: "bottomright" }).addTo(map);
   const pick = document.getElementById("journey");
   const byId = new Map(cards.map(c => [c.id, c]));
   JOURNEYS.forEach((j, i) => { j.stops = j.ids.map(id => byId.get(id)).filter(Boolean); pick.add(new Option(`${j.name} (${j.stops.length} chặng)`, i)); });
