@@ -1,5 +1,6 @@
 """Scatter fantasy-map relief icons (mountains, hills, dunes, trees) over the real mountain ranges, deserts,
-plateaus and forests of Natural Earth's geography regions, one point set per zoom level. Writes relief.json:
+plateaus and forests of Natural Earth's geography regions, one point set per zoom level. Writes relief.json,
+and coast.json (simplified land outlines for the coastal ripple lines):
 
     python3 make_relief.py
 
@@ -75,3 +76,19 @@ for z in ZOOMS:
     out[z] = pts
     print(f"zoom {z}: {len(pts)} icons")
 json.dump(out, open("relief.json", "w"), separators=(",", ":"))
+
+# Coast: outer ring of each land polygon, points closer than 0.18 degrees dropped (about 4 px at zoom 5),
+# stored flat as tenths of a degree: [lng*10, lat*10, lng*10, lat*10, ...].
+land = json.load(urllib.request.urlopen(SRC.replace("geography_regions_polys", "land")))["features"]
+rings = []
+for f in land:
+    g = f["geometry"]
+    for poly in (g["coordinates"] if g["type"] == "MultiPolygon" else [g["coordinates"]]):
+        r = poly[0]
+        if max(c[1] for c in r) < -60: continue
+        keep = [r[0]]
+        for c in r[1:]:
+            if math.hypot(c[0] - keep[-1][0], c[1] - keep[-1][1]) >= .18: keep.append(c)
+        if len(keep) >= 4: rings.append([round(v * 10) for c in keep for v in c])
+print(f"coast: {len(rings)} rings, {sum(map(len, rings)) // 2} points")
+json.dump(rings, open("coast.json", "w"), separators=(",", ":"))

@@ -602,14 +602,58 @@ const Relief = L.GridLayer.extend({
   },
 });
 
+// Coastal ripple lines, the way fantasy and old sea charts hatch the water along every shore. Each ring is drawn as a
+// wide stroke with a slightly narrower one cut out of it, then the land itself is cut out so lines stay on the sea.
+const RIPPLES = [[22, .14], [15, .22], [9, .32], [4, .42]]; // px from the shore (outermost first), ink opacity
+const Ripples = L.GridLayer.extend({
+  initialize(rings, opts) {
+    this._rings = rings.map(r => {
+      const b = [Infinity, Infinity, -Infinity, -Infinity];
+      for (let i = 0; i < r.length; i += 2) {
+        b[0] = Math.min(b[0], r[i] / 10); b[2] = Math.max(b[2], r[i] / 10);
+        b[1] = Math.min(b[1], r[i + 1] / 10); b[3] = Math.max(b[3], r[i + 1] / 10);
+      }
+      return { r, b };
+    });
+    L.setOptions(this, opts);
+  },
+  createTile(c) {
+    const t = document.createElement("canvas"), s = this.getTileSize(), q = window.devicePixelRatio || 1;
+    t.width = s.x * q; t.height = s.y * q;
+    const ctx = t.getContext("2d"), ox = c.x * s.x, oy = c.y * s.y, m = 24, path = new Path2D();
+    const nw = this._map.unproject([ox - m, oy - m], c.z), se = this._map.unproject([ox + s.x + m, oy + s.y + m], c.z);
+    let any = false;
+    for (const { r, b } of this._rings) for (const k of [-360, 0, 360]) { // world copies either side
+      if (b[2] + k < nw.lng || b[0] + k > se.lng || b[3] < se.lat || b[1] > nw.lat) continue;
+      if (Math.max(b[2] - b[0], b[3] - b[1]) * 2 ** c.z < 4) continue; // islets would become ink bullseyes when zoomed out
+      any = true;
+      for (let i = 0; i < r.length; i += 2) {
+        const p = this._map.project([r[i + 1] / 10, r[i] / 10 + k], c.z);
+        i ? path.lineTo(p.x - ox, p.y - oy) : path.moveTo(p.x - ox, p.y - oy);
+      }
+      path.closePath();
+    }
+    if (!any) return t;
+    ctx.scale(q, q); ctx.lineJoin = ctx.lineCap = "round";
+    for (const [d, a] of RIPPLES) {
+      ctx.globalCompositeOperation = "source-over"; ctx.strokeStyle = `rgba(38, 66, 84, ${a})`; ctx.lineWidth = 2 * d + .7; ctx.stroke(path);
+      ctx.globalCompositeOperation = "destination-out"; ctx.strokeStyle = "#000"; ctx.lineWidth = 2 * d - .7; ctx.stroke(path); // opaque, or it only half erases
+    }
+    ctx.fillStyle = "#000"; ctx.fill(path); // still destination-out: clear the land
+    return t;
+  },
+});
+
 function initMap() {
   map = L.map("map", { worldCopyJump: true, minZoom: 2, maxZoom: 14 }).setView([25, 60], 2);
   // shortcut: Stadia serves these keyless only on localhost; register the domain (free tier) before publishing.
   watercolor().addTo(map);
   Promise.all([fetch("relief.json").then(r => r.json()), ...RELIEF_ICONS.map(v => Promise.all(v.map(f => {
     const i = new Image(); i.src = `relief/${f}.svg`; return i.decode().then(() => i);
-  })))]).then(([pts, ...imgs]) => new Relief(pts, imgs, { minZoom: 2, maxZoom: 7, pane: "relief" }).addTo(map))
+  })))]).then(([pts, ...imgs]) => new Relief(pts, imgs, { minZoom: 2, maxZoom: 7, pane: "relief", zIndex: 2 }).addTo(map))
     .catch(() => {}); // decoration only: the map works without it
+  fetch("coast.json").then(r => r.json()).then(rings => new Ripples(rings, { minZoom: 2, maxZoom: 7, pane: "relief", zIndex: 1 }).addTo(map))
+    .catch(() => {});
   // Antique chart furniture: a compass rose (click = back to the whole world) and a checkered league scale.
   L.control.scale({ imperial: false, maxWidth: 140, position: "topleft" }).addTo(map);
   const Rose = L.Control.extend({ onAdd() {

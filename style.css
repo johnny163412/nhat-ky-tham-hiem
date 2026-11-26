@@ -142,7 +142,21 @@ a { color: var(--rust); }
     repeating-linear-gradient(0deg, var(--paper) 0 28px, var(--ink) 28px 56px) right / var(--g) 100% no-repeat,
     var(--paper);
 }
+.neatline { position: relative; }
+/* corner ornament: S. H. Redmond, public domain (Wikimedia Commons), inked in the theme colour through a mask */
+.corner {
+  position: absolute; z-index: 1000; width: 112px; height: 112px; pointer-events: none; background: var(--ink);
+  -webkit-mask: url(frame-corner.svg) center / contain no-repeat; mask: url(frame-corner.svg) center / contain no-repeat;
+}
+.corner.bl { left: -12px; bottom: -12px; }
+.corner.tl { left: -12px; top: -12px; transform: scaleY(-1); }
+.corner.tr { right: -12px; top: -12px; transform: scale(-1, -1); }
+.corner.br { right: -12px; bottom: -12px; transform: scaleX(-1); }
+.neatline .leaflet-top .leaflet-control { margin-top: 44px; }
+.neatline .leaflet-left .leaflet-control { margin-left: 44px; }
+.neatline .leaflet-right .leaflet-control { margin-right: 44px; }
 @media (max-width: 560px) { .neatline { --g: 5px; outline-offset: 2px; } }
+@media (max-width: 560px) { .corner { width: 72px; height: 72px; } .neatline .leaflet-control { margin-top: 28px !important; margin-left: 28px !important; margin-right: 28px !important; } }
 .leaflet-tile-pane { filter: sepia(.35) saturate(.85) contrast(.95); }
 .leaflet-container { font-family: var(--serif); }
 .seal {
