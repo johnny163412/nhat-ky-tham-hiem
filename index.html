@@ -36,6 +36,12 @@
   <section id="map-view" hidden>
     <div class="neatline">
       <i class="corner tl" aria-hidden="true"></i><i class="corner tr" aria-hidden="true"></i><i class="corner bl" aria-hidden="true"></i><i class="corner br" aria-hidden="true"></i>
+      <div id="welcome" class="welcome" role="dialog" aria-labelledby="welcome-h" hidden>
+        <h2 id="welcome-h">Chào nhà thám hiểm</h2>
+        <p>Đây là tấm bản đồ của những chuyện lịch sử ít ai kể. Mỗi dấu son là một câu chuyện. Đọc xong, bạn được đóng một con dấu vào hộ chiếu, và sương mù quanh nơi ấy tan đi.</p>
+        <a class="welcome-go" href="#/">Bắt đầu với câu chuyện này →<strong class="welcome-title"></strong></a>
+        <button type="button" class="chip welcome-skip">Tự đi khám phá bản đồ</button>
+      </div>
       <div class="cartouche" aria-hidden="true"><span>Bản Đồ Thế Giới</span><small>Orbis Terrarum Tabula</small></div>
       <div id="map" role="application" aria-label="Bản đồ thế giới với các câu chuyện lịch sử. Phóng to để thấy từng câu chuyện."></div>
     </div>

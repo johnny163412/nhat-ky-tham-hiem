@@ -144,6 +144,19 @@ a { color: var(--rust); }
     var(--paper);
 }
 .neatline { position: relative; }
+.welcome {
+  position: absolute; z-index: 1001; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(400px, calc(100% - 48px));
+  padding: 22px 24px 18px; text-align: center; background: var(--paper); color: var(--ink);
+  border: 1.5px solid var(--ink); outline: 1px solid var(--ink); outline-offset: -7px; box-shadow: 4px 8px 24px rgba(40, 20, 5, .4);
+}
+.welcome h2 { font: 700 1.6rem/1.2 var(--title); margin: 0 0 8px; }
+.welcome p { margin: 0 0 14px; line-height: 1.55; }
+.welcome-go {
+  display: block; padding: 10px 16px; font: 1.1rem var(--hand); color: #f6ecd4; background: var(--rust);
+  text-decoration: none; border-radius: 6px; box-shadow: 2px 3px 0 var(--edge);
+}
+.welcome-go strong { display: block; font: 600 1.05rem/1.3 var(--title); margin-top: 2px; }
+.welcome-skip { display: block; margin: 12px auto 0; }
 /* journal + passport pages: the map's double rule and engraved corners around the whole page */
 .folio {
   position: relative; padding: 44px 26px; margin: 6px; border: 1.5px solid var(--ink); outline: 1px solid var(--ink); outline-offset: 4px;
@@ -174,7 +187,8 @@ a { color: var(--rust); }
 .neatline .leaflet-left .leaflet-control { margin-left: 44px; }
 .neatline .leaflet-right .leaflet-control { margin-right: 44px; }
 @media (max-width: 560px) { .neatline { --g: 5px; outline-offset: 2px; } }
-@media (max-width: 560px) { .folio { padding: 36px 12px; margin: 4px; } .folio .corner { width: 60px; height: 60px; }
+@media (max-width: 560px) { .welcome { padding: 16px 16px 14px; } .welcome h2 { font-size: 1.3rem; } .welcome p { font-size: .95rem; line-height: 1.45; }
+  .folio { padding: 36px 12px; margin: 4px; } .folio .corner { width: 60px; height: 60px; }
   .cartouche { width: 160px; top: 12px; } .cartouche span { font-size: .55rem; top: 45%; } .cartouche small { font-size: .62rem; }
   .corner { width: 72px; height: 72px; } .neatline .leaflet-control { margin-top: 28px !important; margin-left: 28px !important; margin-right: 28px !important; } }
 .leaflet-tile-pane { filter: sepia(.35) saturate(.85) contrast(.95); }

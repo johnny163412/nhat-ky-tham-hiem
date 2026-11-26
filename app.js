@@ -769,9 +769,24 @@ function drawPins() {
   drawBorders();
 }
 
+// First visit: a card on the chart says what this place is and hands over one story to start with.
+const WELCOME_KEY = "nhatky-chao", welcomeBox = document.getElementById("welcome");
+const closeWelcome = () => { welcomeBox.hidden = true; try { localStorage.setItem(WELCOME_KEY, "1"); } catch {} };
+welcomeBox.querySelectorAll("a, button").forEach(el => el.addEventListener("click", closeWelcome));
+function welcome() {
+  let done = seen.size > 0;
+  try { done ||= !!localStorage.getItem(WELCOME_KEY); } catch {}
+  if (done) return;
+  const t = todayCard().card;
+  welcomeBox.querySelector(".welcome-go").href = `#/c/${t.id}`;
+  welcomeBox.querySelector(".welcome-title").textContent = t.title;
+  welcomeBox.hidden = false;
+}
+
 function showMap() {
   mapView.hidden = false; app.hidden = true;
   if (map) { map.invalidateSize(); drawPins(); fog.draw(); } else initMap();
+  welcome();
   // first map view of the session: the chart unrolls from the middle and the ink soaks in
   try {
     if (!sessionStorage.getItem("nhatky-mo-ban-do") && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
