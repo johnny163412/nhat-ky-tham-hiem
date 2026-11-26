@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="style.css">
+  <link rel="preload" href="cards.json" as="fetch" crossorigin>
   <!-- set candlelight mode before first paint: saved choice, else the device setting -->
   <script>try { document.documentElement.dataset.theme = localStorage.getItem("nhatky-giao-dien") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); } catch {}</script>
 </head>
@@ -31,9 +32,10 @@
       <span>Bất ngờ đi</span>
     </button>
     <div class="fontsize" role="group" aria-label="Cỡ chữ, âm thanh và ánh sáng"><button type="button" data-step="-1" aria-label="Chữ nhỏ hơn">A−</button><button type="button" data-step="1" aria-label="Chữ to hơn">A+</button><button type="button" id="sound-toggle" class="sound" aria-pressed="true">♪</button><button type="button" id="theme-toggle" aria-pressed="false">☾</button></div>
-    <nav class="tabs"><a href="#/" data-view="map">Bản đồ</a><a href="#/nhat-ky" data-view="feed">Nhật ký</a><a href="#/dong-thoi-gian" data-view="timeline">Thời gian</a><a href="#/ho-chieu" data-view="passport">Hộ chiếu</a></nav>
+    <nav class="tabs"><a href="#/" data-view="map">Bản đồ</a><a href="#/nhat-ky" data-view="feed">Nhật ký</a><a href="#/dong-thoi-gian" data-view="timeline">Thời gian</a><a href="#/ho-chieu" data-view="passport">Hộ chiếu</a><a href="#/do" data-view="quiz">Đố năm</a></nav>
   </header>
-  <section id="map-view" hidden>
+  <section id="map-view" role="main" aria-labelledby="map-h1" hidden>
+    <h1 id="map-h1" class="sr-only">Bản đồ những câu chuyện lịch sử</h1>
     <div class="neatline">
       <i class="corner tl" aria-hidden="true"></i><i class="corner tr" aria-hidden="true"></i><i class="corner bl" aria-hidden="true"></i><i class="corner br" aria-hidden="true"></i>
       <div id="welcome" class="welcome" role="dialog" aria-labelledby="welcome-h" hidden>
@@ -69,7 +71,7 @@
   <div id="progress" class="progress" hidden></div>
   <dialog id="lightbox" class="lightbox" aria-label="Ảnh phóng to"><img alt=""><p></p><button type="button" class="chip" data-close>Đóng</button></dialog>
   <main id="app" tabindex="-1"><p class="loading">Đang giở nhật ký…</p></main>
-  <footer class="foot">Nội dung tóm lược từ Wikipedia và các nguồn sử liệu; ảnh từ Wikimedia Commons, bấm vào nguồn ở từng trang để xem giấy phép.</footer>
+  <footer class="foot">Nội dung tóm lược từ Wikipedia và các nguồn sử liệu; ảnh từ Wikimedia Commons, bấm vào nguồn ở từng trang để xem giấy phép. <a href="#/gioi-thieu">Giới thiệu và ghi công</a></footer>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="app.js"></script>

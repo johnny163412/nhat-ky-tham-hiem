@@ -16,7 +16,7 @@ commons = lambda f, w: "https://commons.wikimedia.org/wiki/Special:FilePath/" + 
 
 def figure(im):
     size = f' width="{im["w"]}" height="{im["h"]}" style="aspect-ratio:{im["w"]}/{im["h"]}"' if im.get("w") else ""
-    return (f'<figure class="fig"><span class="mount"><img class="sketch" src="{e(commons(im["file"], 960))}" alt="{e(im["caption"])}"{size} loading="lazy"></span>'
+    return (f'<figure class="fig"><span class="mount"><img class="sketch" src="{e("../img/" + im["img"] + ".webp" if im.get("img") else commons(im["file"], 960))}" alt="{e(im["caption"])}"{size} loading="lazy"></span>'
             f'<figcaption>{e(im["caption"])} <a href="https://commons.wikimedia.org/wiki/{e(urllib.parse.quote(im["file"]))}">{e(im["credit"])}</a></figcaption></figure>')
 
 

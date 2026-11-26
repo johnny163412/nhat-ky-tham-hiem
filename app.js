@@ -45,12 +45,44 @@ function todayCard(now = new Date()) {
   return { card: byId[dayNo(now) % byId.length], label: `Trang hôm nay · ${now.getDate()}/${now.getMonth() + 1}` };
 }
 
+const nearToday = (c, days = 7, now = new Date()) => {
+  if (!c.date) return false;
+  const x = Math.abs(dayOfYear(c.date) - dayOfYear(`${now.getMonth() + 1}-${now.getDate()}`));
+  return Math.min(x, 366 - x) <= days;
+};
+
+// "Years ago" on a log scale, so 20,000 years of prehistory and the last century both get room. 0 = oldest, 1 = now.
+const NOW_Y = new Date().getFullYear(), AGE_MAX = Math.log(22000);
+const agePos = y => Math.min(1, Math.max(0, 1 - Math.log(NOW_Y - y + 10) / AGE_MAX));
+const posYear = p => Math.round(NOW_Y + 10 - Math.exp((1 - p) * AGE_MAX));
+console.assert(Math.abs(posYear(agePos(1288)) - 1288) <= 1 && Math.abs(posYear(agePos(-2560)) + 2560) <= 1, "agePos/posYear must invert");
+const ANCHORS = [[-2560, "Kim tự tháp Giza"], [1010, "Dời đô về Thăng Long"], [1969, "Apollo 11"]];
+const agoText = y => `cách nay khoảng ${(NOW_Y - y).toLocaleString("vi")} năm`;
+const miniTimeline = c => `<figure class="mini-tl" aria-label="${esc(yearText(c.year))}, ${agoText(c.year)}">
+  <div class="mini-tl-bar" aria-hidden="true">${ANCHORS.map(([y, t]) => `<span class="mini-tl-anchor" style="left:${(agePos(y) * 100).toFixed(1)}%"><i></i><small>${esc(t)}<br>${yearText(y).replace("năm ", "")}</small></span>`).join("")}
+    <span class="mini-tl-here" style="left:${(agePos(c.year) * 100).toFixed(1)}%"><b>${yearText(c.year).replace("năm ", "")}</b></span></div>
+  <figcaption>${yearText(c.year)}, ${agoText(c.year)}</figcaption>
+</figure>`;
+
+// Three stories to read next: nearest place, same kind nearest in time, then nearest in time. Unread ones first.
+const km = (a, b) => { const r = Math.PI / 180, h = Math.sin((b.lat - a.lat) * r / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin((b.lng - a.lng) * r / 2) ** 2; return 12742 * Math.asin(Math.sqrt(h)); };
+function nextReads(c) {
+  const out = [], by = (label, f, keep = () => true) => {
+    const x = cards.filter(o => o.id !== c.id && !out.some(([, p]) => p === o) && keep(o)).sort((a, b) => seen.has(a.id) - seen.has(b.id) || f(a) - f(b))[0];
+    if (x) out.push([label, x]);
+  };
+  by("Gần nơi này", o => km(c, o));
+  by(`Cũng là chuyện ${KINDS[c.kind][0].toLowerCase()}`, o => Math.abs(o.year - c.year), o => o.kind === c.kind);
+  by("Cùng thời", o => Math.abs(o.year - c.year));
+  return out;
+}
+
 // Journal and passport pages sit in the same double rule and engraved corners as the map.
 const folio = html => `<div class="folio">${["tl", "tr", "bl", "br"].map(k => `<i class="corner ${k}" aria-hidden="true"></i>`).join("")}${html}</div>`;
 
 function renderFeed() {
   const { card: t, label } = todayCard(), s = liveStreak(streak), readToday = streak.last === dayNo();
-  app.innerHTML = folio(`<a class="today" href="#/c/${esc(t.id)}">
+  app.innerHTML = folio(`<h1 class="sr-only">Nhật ký các câu chuyện</h1><a class="today" href="#/c/${esc(t.id)}">
       <span class="today-ribbon">${esc(label)}</span>
       ${s ? `<span class="streak">${readToday ? `Đã đi ${s} ngày liền` : `Lật một trang hôm nay để giữ chuỗi ${s} ngày`}</span>` : ""}
       <span class="meta">${KINDS[t.kind][0]} · ${yearText(t.year)} · ${esc(t.place)}</span>
@@ -61,7 +93,7 @@ function renderFeed() {
     <ul class="feed">${cards.map(c => `
     <li><a class="page" href="#/c/${esc(c.id)}">
       <span class="stamp ${c.verdict}">${VERDICT[c.verdict]}</span>
-      <img class="sketch" src="${commons(c.images[0].file, 500)}" alt="" loading="lazy">
+      <img class="sketch" src="${pic(c.images[0], true)}" alt="" loading="lazy">
       <div class="meta">${yearText(c.year)} · ${esc(c.place)} · ${readMins(c)} phút đọc</div>
       <h2>${esc(c.title)}</h2>
       <p>${esc(c.teaser)}</p>
@@ -70,9 +102,11 @@ function renderFeed() {
 
 // Commons serves a resized copy of any file through Special:FilePath.
 const commons = (f, w) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(f.replace(/^File:/, ""))}${w ? `?width=${w}` : ""}`;
+// Copies in img/ (made by fetch_images.py) load faster and do not hit Commons rate limits.
+const pic = (im, small) => im.img ? `img/${im.img}${small ? "-s" : ""}.webp` : commons(im.file, small ? 500 : 960);
 // width/height from Commons (stored in cards.json) reserve the space, so text does not jump when the image arrives.
 const figure = im => `<figure class="fig">
-  <button type="button" class="zoom" data-file="${esc(im.file)}" aria-label="Phóng to ảnh: ${esc(im.caption)}"><span class="mount"><img class="sketch" src="${commons(im.file, 960)}" alt="${esc(im.caption)}" width="${im.w || ""}" height="${im.h || ""}"${im.w ? ` style="aspect-ratio:${im.w}/${im.h}"` : ""} loading="lazy"></span></button>
+  <button type="button" class="zoom" data-file="${esc(im.file)}" aria-label="Phóng to ảnh: ${esc(im.caption)}"><span class="mount"><img class="sketch" src="${pic(im)}" alt="${esc(im.caption)}" width="${im.w || ""}" height="${im.h || ""}"${im.w ? ` style="aspect-ratio:${im.w}/${im.h}"` : ""} loading="lazy"></span></button>
   <figcaption>${esc(im.caption)} <a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(im.file)}" target="_blank" rel="noopener">${esc(im.credit)}</a></figcaption>
 </figure>`;
 
@@ -186,7 +220,7 @@ app.addEventListener("click", e => {
 });
 lightbox.addEventListener("click", e => { if (e.target === lightbox || e.target.closest("[data-close]")) lightbox.close(); });
 
-const BACK = { "#/": "Về bản đồ", "#/nhat-ky": "Về nhật ký", "#/ho-chieu": "Về hộ chiếu", "#/dong-thoi-gian": "Về dòng thời gian" };
+const BACK = { "#/do": "Về câu đố", "#/": "Về bản đồ", "#/nhat-ky": "Về nhật ký", "#/ho-chieu": "Về hộ chiếu", "#/dong-thoi-gian": "Về dòng thời gian" };
 
 // --- sounds: synthesised with Web Audio (no files): a paper rustle for a page, a thump for a stamp ---
 const SOUND_KEY = "nhatky-am-thanh";
@@ -227,6 +261,7 @@ function renderStory(c) {
     ${fresh ? `<div class="new-stamp" role="status">Đã đóng dấu vào hộ chiếu · ${seen.size}/${cards.length}${earnedBy(c.id).map(b => `<br>Huy hiệu mới: ${esc(b.name)}`).join("")}</div>` : ""}
     <div class="meta">${yearText(c.year)} · ${esc(c.place)} · ${readMins(c)} phút đọc</div>
     <h1>${esc(c.title)}</h1>
+    ${miniTimeline(c)}
     <figure class="locator"><div id="locator" role="img" aria-label="Vị trí trên bản đồ: ${esc(c.place)}"></div><figcaption>© Stadia Maps, Stamen, OpenStreetMap</figcaption></figure>
     <p class="lead">${esc(c.teaser)}</p>
     <div class="story-tools">
@@ -238,6 +273,8 @@ function renderStory(c) {
     <div class="body">${storyBody(c)}</div>
     <div class="verdict ${c.verdict}"><strong>${VERDICT[c.verdict]}</strong> · ${esc(c.verdictNote)}</div>
     ${c.sources ? `<h2 class="src-title">Nguồn</h2><ol class="sources">${c.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a></li>`).join("")}</ol>` : ""}
+    <h2 class="src-title">Đọc tiếp</h2>
+    <ul class="next-reads">${nextReads(c).map(([label, o]) => `<li><a href="#/c/${esc(o.id)}">${o.images?.[0] ? `<img class="sketch" src="${pic(o.images[0], true)}" alt="" loading="lazy">` : ""}<span class="meta">${esc(label)}${seen.has(o.id) ? " · đã đọc" : ""}</span><strong>${esc(o.title)}</strong></a></li>`).join("")}</ul>
     <div class="actions">
       <a href="${wikiUrl(c.wiki)}" target="_blank" rel="noopener">Đọc thêm trên Wikipedia →</a>
       <button class="compass" type="button" data-random>Chuyện khác bất kỳ</button>
@@ -291,7 +328,7 @@ const loadImg = src => new Promise(ok => { const i = new Image(); i.crossOrigin 
 async function drawStoryCard(c) {
   await document.fonts?.ready;
   const [cv, g] = cardCanvas();
-  const src = c.images?.[0] && await thumbUrl(c.images[0].file, 960), im = src && await loadImg(src);
+  const im0 = c.images?.[0], src = im0 && (im0.img ? pic(im0) : await thumbUrl(im0.file, 960)), im = src && await loadImg(src);
   let y = 140;
   if (im) { // cover-crop into a 980x560 window, sepia like the app
     const bw = 920, bh = 540, s = Math.max(bw / im.width, bh / im.height), sw = bw / s, sh = bh / s;
@@ -507,6 +544,12 @@ const JOURNEYS = [
     ids: ["thanh-troy", "thermopylae", "vay-tyre", "hannibal-voi-alps", "xich-bich", "mong-co-danh-nhat", "bach-dang-1288", "isandlwana", "chien-dich-mincemeat"] },
   { name: "Những bí ẩn chưa lời giải", note: "Những nơi sử gia vẫn còn cãi nhau.",
     ids: ["otzi-nguoi-bang", "dao-quan-cambyses", "hoang-tu-trong-thap", "dich-nhay-mua-1518", "thuoc-dia-roanoke", "mary-celeste", "tunguska"] },
+  { name: "Kinh đô và thành quách", note: "Nỏ thần Cổ Loa, thành đá nhà Hồ, Thăng Long nghìn năm dưới lòng đất và một ông vua trốn khỏi Đại Nội.",
+    ids: ["co-loa-no-than", "quoc-tu-giam", "ly-chieu-hoang", "thanh-nha-ho", "dong-da-1789", "vua-duy-tan", "hoang-thanh-18-hoang-dieu"] },
+  { name: "Việt Nam thời Pháp thuộc", note: "Một ông vua vẽ tranh ở Alger, một cuộc săn chuột, một đêm trốn khỏi Đại Nội và những phế tích người Pháp đào lên.",
+    ids: ["trong-dong-dong-son", "ham-nghi-hoa-si", "san-chuot-ha-noi", "vua-duy-tan", "oc-eo-phu-nam"] },
+  { name: "Khách lạ phương Nam", note: "Sứ nhà Nguyên ở Angkor, hạm đội Trịnh Hòa, thương nhân Nhật cưới công nữ Việt, samurai làm quan ở Xiêm.",
+    ids: ["chu-dat-quan-angkor", "trinh-hoa-ha-tay-duong", "cong-nu-ngoc-hoa", "yamada-nagamasa", "borobudur-bi-lang-quen"] },
 ];
 let journey = null, routeLayer;
 
@@ -684,7 +727,7 @@ function initMap() {
   fog = new Fog().addTo(map);
   pins = L.markerClusterGroup({
     showCoverageOnHover: false, maxClusterRadius: 60,
-    iconCreateFunction: cl => L.divIcon({ html: `<span>${cl.getChildCount()}</span>`, className: "cluster", iconSize: [44, 44] }),
+    iconCreateFunction: cl => L.divIcon({ html: `<span>${cl.getChildCount()}</span>`, className: `cluster${cl.getAllChildMarkers().some(m => m.options.today) ? " today" : ""}`, iconSize: [44, 44] }),
   }).addTo(map);
   const range = document.getElementById("era-range");
   range.max = SNAPS.length - 1;
@@ -754,8 +797,8 @@ function drawPins() {
   document.getElementById("journey-note").innerHTML = journey ? `${esc(journey.note)} <a href="#/hanh-trinh/${JOURNEYS.indexOf(journey)}">Đọc trọn hành trình →</a>` : "";
   shown.forEach((c, i) => (journey ? routeLayer : pins).addLayer(
     L.marker(journey ? path[i] : [c.lat, c.lng], {
-      title: c.title, alt: c.title,
-      icon: L.divIcon({ className: `seal ${c.verdict}${seen.has(c.id) ? " seen" : ""}${journey ? " stop" : ""}`, iconSize: [26, 26], html: journey ? `${i + 1}` : glyph(c.kind) }),
+      title: c.title, alt: c.title, today: !journey && nearToday(c),
+      icon: L.divIcon({ className: `seal ${c.verdict}${seen.has(c.id) ? " seen" : ""}${journey ? " stop" : ""}${!journey && nearToday(c) ? " today" : ""}`, iconSize: [26, 26], html: journey ? `${i + 1}` : glyph(c.kind) }),
     }).bindPopup(`<div class="meta">${KINDS[c.kind][0]} · ${yearText(c.year)} · ${esc(c.place)}</div>
       <h3>${esc(c.title)}</h3><p>${esc(c.teaser)}</p>
       <a href="#/c/${esc(c.id)}">Đọc trang này →</a>`)
@@ -765,7 +808,8 @@ function drawPins() {
   document.getElementById("era-name").textContent = name;
   document.getElementById("era-range").setAttribute("aria-valuetext", name);
   document.getElementById("era-all").setAttribute("aria-pressed", era === null);
-  document.getElementById("era-count").textContent = `· ${shown.length} câu chuyện, đã khám phá ${shown.filter(c => seen.has(c.id)).length}`;
+  const todays = shown.filter(c => !journey && nearToday(c)).length;
+  document.getElementById("era-count").textContent = `· ${shown.length} câu chuyện, đã khám phá ${shown.filter(c => seen.has(c.id)).length}${todays ? ` · ${todays} dấu sáng là chuyện xảy ra trong tuần này năm xưa` : ""}`;
   drawBorders();
 }
 
@@ -862,6 +906,81 @@ function renderJourney(i) {
   trekMap.on("unload", () => io.disconnect());
 }
 
+// Daily puzzle: everyone gets the same story each day and has 4 tries to guess its year.
+// shortcut: answers live in cards.json, so anyone reading the source can cheat; fine for a casual game.
+const QUIZ_KEY = "nhatky-do", TRIES = 4;
+const quizCard = (d = dayNo()) => { const byId = [...cards].sort((x, y) => x.id.localeCompare(y.id)); return byId[(d * 37 + 11) % byId.length]; };
+const tolerance = y => Math.max(5, Math.round((NOW_Y - y) * .1)); // within 10% of how long ago it was
+const mask = t => t.replace(/\d[\d.,]{2,}/g, "▢▢▢▢"); // hide years and big numbers that give the answer away
+console.assert(mask("Hà Nội 1902: 1.000 người, 15 tuổi") === "Hà Nội ▢▢▢▢: ▢▢▢▢ người, 15 tuổi", "mask");
+const quizState = () => { try { const q = JSON.parse(localStorage.getItem(QUIZ_KEY)); if (q?.day === dayNo()) return q; } catch {} return { day: dayNo(), guesses: [] }; };
+const mark = (g, y) => (Math.abs(g - y) <= tolerance(y) ? "🟩" : Math.abs(g - y) <= 3 * tolerance(y) ? "🟨" : "🟥") + (Math.abs(g - y) <= tolerance(y) ? "" : g < y ? "⬆" : "⬇");
+function renderQuiz() {
+  const c = quizCard(), q = quizState(), won = q.guesses.some(g => Math.abs(g - c.year) <= tolerance(c.year)), over = won || q.guesses.length >= TRIES;
+  const save = () => { try { localStorage.setItem(QUIZ_KEY, JSON.stringify(q)); } catch {} };
+  const now = new Date(), title = `Đố năm ${now.getDate()}/${now.getMonth() + 1}`;
+  app.innerHTML = folio(`<section class="passport quiz">
+    <h1>${title}</h1>
+    <p class="meta">Chuyện này xảy ra năm nào? Bạn có ${TRIES} lần đoán. Trúng trong khoảng ±${tolerance(c.year).toLocaleString("vi")} năm là thắng. Mỗi ngày một câu, ai cũng nhận cùng một câu.</p>
+    ${c.images?.[0] ? `<span class="mount"><img class="sketch" src="${pic(c.images[0])}" alt="Ảnh gợi ý"></span>` : ""}
+    <p class="lead">${KINDS[c.kind][0]} · ${esc(c.place)}</p>
+    <p><strong>${esc(mask(c.title))}</strong></p>
+    <p>${esc(mask(c.teaser))}</p>
+    <ol class="quiz-tries">${q.guesses.map(g => `<li>${yearText(g)} <span aria-hidden="true">${mark(g, c.year)}</span> · ${Math.abs(g - c.year) <= tolerance(c.year) ? "trúng" : g < c.year ? "muộn hơn" : "sớm hơn"}</li>`).join("")}</ol>
+    ${over ? `<p class="quiz-end" role="status">${won ? `Trúng rồi! Đó là ${yearText(c.year)}.` : `Hết lượt. Đáp án là ${yearText(c.year)}.`} Quay lại ngày mai để đoán câu mới.</p>
+      <div class="actions"><a class="today-go" href="#/c/${esc(c.id)}">Đọc chuyện này →</a><button class="chip" type="button" data-share-quiz>Khoe kết quả</button></div>`
+    : `<form class="quiz-form">
+      <label for="quiz-y">Năm bạn đoán: <strong id="quiz-out"></strong></label>
+      <input id="quiz-y" type="range" min="0" max="1000" value="${q.guesses.length ? Math.round(agePos(q.guesses.at(-1)) * 1000) : 300}">
+      <div class="quiz-row"><button class="chip" type="button" data-step="-1" aria-label="Sớm hơn một chút">−</button><button class="chip" type="button" data-step="1" aria-label="Muộn hơn một chút">+</button>
+      <button class="compass" type="submit">Đoán (còn ${TRIES - q.guesses.length} lượt)</button></div>
+    </form>`}
+  </section>`);
+  if (over) {
+    const text = `Nhật Ký Thám Hiểm · ${title}\n${q.guesses.map(g => mark(g, c.year)).join(" ")}${won ? "" : " ❌"}\n${location.href.split("#")[0]}#/do`;
+    app.querySelector("[data-share-quiz]").onclick = async e => {
+      try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); e.target.textContent = "Đã chép, dán vào tin nhắn"; } } catch {}
+    };
+    return;
+  }
+  const range = app.querySelector("#quiz-y"), out = app.querySelector("#quiz-out");
+  let year = posYear(range.value / 1000);
+  const show = () => { out.textContent = yearText(year); range.setAttribute("aria-valuetext", yearText(year)); };
+  range.oninput = () => { year = posYear(range.value / 1000); show(); };
+  app.querySelectorAll("[data-step]").forEach(b => b.onclick = () => { // finer than the slider: about 1% of the years ago
+    year = Math.min(NOW_Y, year + Number(b.dataset.step) * Math.max(1, Math.round((NOW_Y - year) / 100)));
+    range.value = Math.round(agePos(year) * 1000); show();
+  });
+  show();
+  app.querySelector(".quiz-form").onsubmit = e => { e.preventDefault(); q.guesses.push(year); save(); sfx(Math.abs(year - c.year) <= tolerance(c.year) ? "stamp" : "page"); renderQuiz(); };
+}
+
+// About: what this is, how it works, where everything comes from. Credits mirror README.md.
+const link = (u, t) => `<a href="${u}" target="_blank" rel="noopener">${t}</a>`;
+function renderAbout() {
+  app.innerHTML = folio(`<section class="passport about">
+    <h1>Về cuốn nhật ký này</h1>
+    <p class="lead">Nhật Ký Thám Hiểm gom những chuyện lịch sử có thật mà ít ai kể: chuyện lạ, chuyện nhỏ, chuyện ngược với điều ta tưởng. Mỗi chuyện là một dấu son trên bản đồ, kèm nguồn để bạn tự kiểm chứng.</p>
+    <h2 class="src-title">Cách đi</h2>
+    <p>Chọn một dấu son trên bản đồ, hoặc bấm <em>Bất ngờ đi</em>. Đọc xong một chuyện, bạn được đóng một con dấu vào hộ chiếu và sương mù quanh nơi ấy tan đi. Thanh thời đại cho thấy biên giới thế giới ở từng mốc thời gian.</p>
+    <p>Mỗi chuyện có một nhãn: <strong>Đã xác thực</strong> khi sử liệu đáng tin đều đồng ý, <strong>Lời đồn</strong> khi chuyện được kể nhiều nhưng thiếu bằng chứng, <strong>Chưa rõ</strong> khi giới sử học còn tranh cãi.</p>
+    <h2 class="src-title">Nguồn nội dung</h2>
+    <p>Các chuyện được tóm lược từ Wikipedia và các nguồn ghi ở cuối mỗi trang. Nếu thấy chỗ nào sai, hãy đối chiếu với các nguồn đó: nguồn gốc luôn đúng hơn bản tóm lược.</p>
+    <h2 class="src-title">Ghi công</h2>
+    <ul class="credits">
+      <li>Ảnh minh họa: ${link("https://commons.wikimedia.org/", "Wikimedia Commons")}, tác giả và giấy phép ghi dưới từng ảnh.</li>
+      <li>Nền bản đồ màu nước: ${link("https://stamen.com/", "Stamen Design")} qua ${link("https://stadiamaps.com/", "Stadia Maps")}, dữ liệu ${link("https://www.openstreetmap.org/copyright", "© OpenStreetMap")}.</li>
+      <li>Biên giới lịch sử: ${link("https://github.com/aourednik/historical-basemaps", "historical-basemaps")} (GPL-3.0).</li>
+      <li>Bản đồ cổ: ${link("https://www.davidrumsey.com/", "David Rumsey Map Collection")} qua ${link("https://allmaps.org/", "Allmaps")}.</li>
+      <li>Địa hình và bờ biển: ${link("https://www.naturalearthdata.com/", "Natural Earth")}; biểu tượng núi, rừng: ${link("https://github.com/Azgaar/Fantasy-Map-Generator", "Fantasy Map Generator")} (MIT).</li>
+      <li>Hoa văn góc khung: S. H. Redmond; rồng biển, cá heo, Triton, thuyền: A. C. Fox-Davies (1904) và Jérôme de Bara (1581); dải băng: Christopher J. Fynn (CC0). Tất cả qua Wikimedia Commons.</li>
+      <li>Bản đồ chạy bằng ${link("https://leafletjs.com/", "Leaflet")}; phông chữ EB Garamond, Texturina, Pinyon Script, Charm từ ${link("https://fonts.google.com/", "Google Fonts")}.</li>
+    </ul>
+    <h2 class="src-title">Riêng tư</h2>
+    <p>Trang không có tài khoản, không quảng cáo, không theo dõi. Con dấu, chuỗi ngày và lựa chọn của bạn chỉ lưu trong trình duyệt trên máy này. Xóa dữ liệu trang web là xóa hết.</p>
+  </section>`);
+}
+
 function route() {
   if (trekMap) { trekMap.remove(); trekMap = null; }
   if (locMap) { locMap.remove(); locMap = null; }
@@ -870,13 +989,15 @@ function route() {
   const id = decodeURIComponent(location.hash.split("/c/")[1] || "");
   const card = cards.find(c => c.id === id);
   const trek = location.hash.match(/^#\/hanh-trinh\/(\d+)$/), ji = trek && +trek[1];
-  const view = card ? "story" : trek && JOURNEYS[ji] ? "journey" : location.hash === "#/dong-thoi-gian" ? "timeline" : location.hash === "#/nhat-ky" ? "feed" : location.hash === "#/ho-chieu" ? "passport" : "map";
+  const view = card ? "story" : trek && JOURNEYS[ji] ? "journey" : location.hash === "#/dong-thoi-gian" ? "timeline" : location.hash === "#/nhat-ky" ? "feed" : location.hash === "#/ho-chieu" ? "passport" : location.hash === "#/gioi-thieu" ? "about" : location.hash === "#/do" ? "quiz" : "map";
   document.querySelectorAll(".tabs a").forEach(a => a.toggleAttribute("aria-current", a.dataset.view === view));
   if (view === "map") { lastView = "#/"; document.title = "Nhật Ký Thám Hiểm"; return showMap(); }
   mapView.hidden = true; app.hidden = false;
   if (card) { renderStory(card); document.title = `${card.title} · Nhật Ký Thám Hiểm`; window.scrollTo(0, 0); }
   else if (view === "timeline") { lastView = "#/dong-thoi-gian"; renderTimeline(); document.title = "Dòng thời gian · Nhật Ký Thám Hiểm"; }
   else if (view === "journey") { lastView = location.hash; renderJourney(ji); document.title = `${JOURNEYS[ji].name} · Nhật Ký Thám Hiểm`; window.scrollTo(0, 0); }
+  else if (view === "quiz") { lastView = "#/do"; renderQuiz(); document.title = "Đố năm · Nhật Ký Thám Hiểm"; }
+  else if (view === "about") { lastView = "#/gioi-thieu"; renderAbout(); document.title = "Giới thiệu · Nhật Ký Thám Hiểm"; window.scrollTo(0, 0); }
   else if (view === "passport") { lastView = "#/ho-chieu"; renderPassport(); document.title = "Hộ chiếu · Nhật Ký Thám Hiểm"; }
   else { lastView = "#/nhat-ky"; renderFeed(); document.title = "Nhật ký · Nhật Ký Thám Hiểm"; }
   app.focus({ preventScroll: true });
@@ -905,10 +1026,9 @@ showTheme();
 applySize();
 window.addEventListener("hashchange", route);
 
-fetch("glossary.json").then(r => (r.ok ? r.json() : {})).then(g => { GLOSS = g; }).catch(() => {}) // optional: stories work without notes
-  .then(() => fetch("cards.json"))
-  .then(r => r.json())
-  .then(data => {
+const glossary = fetch("glossary.json").then(r => (r.ok ? r.json() : {})).then(g => { GLOSS = g; }).catch(() => {}); // optional: stories work without notes
+Promise.all([fetch("cards.json").then(r => r.json()), glossary])
+  .then(([data]) => {
     // shuffle once per visit so the journal opens on a different page each time
     cards = data.map(c => [Math.random(), c]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
     route();
