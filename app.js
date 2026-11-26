@@ -171,8 +171,13 @@ const lightbox = document.getElementById("lightbox");
 app.addEventListener("click", e => {
   const z = e.target.closest(".zoom");
   if (z) {
-    lightbox.querySelector("img").src = commons(z.dataset.file, 1600);
-    lightbox.querySelector("img").alt = z.querySelector("img").alt;
+    // Show the copy already on the page at once, then swap in the large one when it arrives,
+    // so a slow or refused download never leaves the previous picture on screen.
+    const img = lightbox.querySelector("img"), small = z.querySelector("img"), big = new Image();
+    img.src = small.currentSrc || small.src; img.dataset.file = z.dataset.file;
+    big.src = commons(z.dataset.file, 1280); // 1280 is a standard Commons thumbnail size; odd sizes get rate-limited
+    big.decode().then(() => { if (img.dataset.file === z.dataset.file) img.src = big.src; }).catch(() => {});
+    img.alt = small.alt;
     lightbox.querySelector("p").textContent = z.querySelector("img").alt;
     return lightbox.showModal();
   }
