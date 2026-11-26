@@ -64,7 +64,7 @@ def page(c):
   {head}
   <script type="application/ld+json">{ld_json}</script>
   <link rel="icon" href="../icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Playfair+Display:wght@600&family=Charm&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&family=Texturina:wght@500;600;700&family=Pinyon+Script&family=Charm&display=swap">
   <link rel="stylesheet" href="../style.css">
 </head>
 <body>
