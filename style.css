@@ -444,7 +444,6 @@ label.chip { display: inline-block; cursor: pointer; }
 /* --- reading frame: shorter lines, airier leading for stacked Vietnamese diacritics --- */
 .story .body > p, .story .lead { max-width: 31em; }
 .story .body > p { line-height: 1.8; margin: 0 0 1em; }
-.story .body h2::before { content: "❦"; display: block; text-align: center; margin: 0 0 12px; font-size: 1.3rem; color: var(--ink-soft); font-weight: 400; }
 .story > .fig, .story .toc { clear: both; }
 .pull { margin: 26px 0; padding: 14px 8px; border-block: 1px solid var(--edge); font: italic 1.45rem/1.4 var(--serif); color: var(--rust); text-align: center; text-wrap: balance; }
 .pull::before { content: "“"; font: 3rem/0 var(--title); vertical-align: -.45em; margin-right: 4px; opacity: .6; }
@@ -552,3 +551,54 @@ label.chip { display: inline-block; cursor: pointer; }
   .story > .fig .sketch.ready { animation: none; }
   .fade-pics .sketch { transition: none; }
 }
+/* --- story furniture: kind colour, dividers, fact box, source quote, close, ponder --- */
+.story { --kind: var(--rust); }
+.story[data-kind="bien"] { --kind: #2f5d62; } .story[data-kind="bian"] { --kind: #5b4a7a; } .story[data-kind="vua"] { --kind: var(--ochre); }
+.story[data-kind="khampha"] { --kind: var(--moss); } .story[data-kind="doi"] { --kind: #7a4a2a; }
+[data-theme="dark"] .story[data-kind="bien"] { --kind: #7fb0b5; } [data-theme="dark"] .story[data-kind="bian"] { --kind: #b3a2d4; } [data-theme="dark"] .story[data-kind="khampha"] { --kind: #a8b878; } [data-theme="dark"] .story[data-kind="doi"] { --kind: #d0a27a; }
+.divider { display: flex; align-items: center; gap: 12px; margin: 34px auto 4px; max-width: 260px; color: var(--kind); }
+.divider i { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, currentColor, transparent); }
+.divider svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.divider svg [fill="currentColor"] { fill: currentColor; }
+.fact { position: relative; margin: 26px 6px; padding: 16px 18px 14px; background: color-mix(in srgb, var(--paper-2) 85%, #fff8e0); box-shadow: 1px 3px 8px rgba(40, 20, 5, .2); transform: rotate(-.6deg); font: 1.02rem/1.6 var(--serif); }
+.fact::before { content: ""; position: absolute; top: -10px; left: 50%; width: 92px; height: 20px; transform: translateX(-50%) rotate(2deg); background: color-mix(in srgb, var(--kind) 30%, rgba(255, 248, 225, .7)); opacity: .8; } /* tape */
+.fact strong { display: block; font: 600 1.15rem var(--title); color: var(--kind); margin-bottom: 4px; }
+.fact a { font-size: .85rem; }
+.source-quote { margin: 30px 0 10px; padding: 20px 22px; border: 1px solid var(--edge); background: color-mix(in srgb, var(--paper-2) 70%, transparent); box-shadow: inset 0 0 30px rgba(120, 80, 30, .15); }
+.source-quote p { margin: 0 0 8px; font: italic 1.2rem/1.55 var(--serif); }
+.source-quote p::before { content: "“"; font: 2.6rem/0 var(--title); vertical-align: -.4em; margin-right: 4px; color: var(--kind); }
+.source-quote cite { font: 1rem var(--hand); color: var(--ink-soft); } .source-quote cite::before { content: "Sử liệu · "; }
+.finis { margin: 34px 0 8px; text-align: center; font: 1.15rem var(--script); color: var(--ink-soft); }
+.finis span { display: block; font-size: 1.8rem; color: var(--kind); line-height: 1; margin-bottom: 4px; }
+.ponder { margin: 14px auto 10px; max-width: 30em; padding: 12px 18px; text-align: center; border-top: 1px dashed var(--edge); border-bottom: 1px dashed var(--edge); }
+.ponder strong { font: 600 1rem var(--title); letter-spacing: .1em; text-transform: uppercase; color: var(--kind); }
+.ponder p { margin: 6px 0 0; font: 1.2rem/1.5 var(--hand); }
+/* key numbers: red ink underline drawn when seen */
+.ink-num { background: linear-gradient(var(--rust), var(--rust)) 0 92% / 0 2px no-repeat; transition: background-size 1.1s ease-out; padding-bottom: 1px; }
+.ink-num.inked { background-size: 100% 2px; }
+/* people cards */
+.person { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline solid color-mix(in srgb, var(--kind) 55%, transparent) 1.5px; text-underline-offset: 4px; }
+.person-card { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 10px; padding: 10px 12px; font: .98rem/1.45 var(--serif); background: color-mix(in srgb, var(--paper-2) 75%, transparent); border-left: 3px solid var(--kind); }
+.person-card[hidden] { display: none; }
+.person-card img { grid-row: span 4; width: 72px; height: 88px; object-fit: cover; filter: sepia(.4); border: 1px solid var(--edge); }
+.person-card strong { font: 600 1.05rem var(--title); } .person-card small { color: var(--ink-soft); font-style: italic; }
+.person-card a { font-size: .9rem; }
+/* route map */
+.route-map { margin: 18px 0 8px; }
+.route-map #route-map { height: 260px; border: 3px double var(--ink); box-shadow: 0 0 0 4px var(--paper-2); }
+.route-map figcaption { font: 1rem var(--hand); color: var(--ink-soft); margin-top: 6px; }
+.trail { transition: stroke-dashoffset 3.5s ease-in-out; } .trail.drawn { stroke-dashoffset: 0 !important; }
+.route-label { font: 600 .78rem var(--serif); color: #3b2a1a; background: rgba(239, 226, 196, .9); border: 1px solid rgba(59, 42, 26, .4); box-shadow: none; padding: 1px 5px; }
+/* then and now */
+.compare { margin: 26px 0; }
+.compare-frame { position: relative; overflow: hidden; aspect-ratio: 3 / 2; border: 3px double var(--ink); }
+.compare-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; max-height: none; }
+.compare-frame img.before { clip-path: inset(0 calc(100% - var(--cut)) 0 0); filter: sepia(.5); }
+.compare-frame::after { content: ""; position: absolute; top: 0; bottom: 0; left: var(--cut); width: 2px; background: #f6ecd4; box-shadow: 0 0 6px rgba(0, 0, 0, .5); }
+.compare-tag { position: absolute; top: 8px; padding: 2px 8px; font: 600 .8rem var(--serif); color: #f6ecd4; background: rgba(40, 25, 10, .6); }
+.compare-tag.left { left: 8px; } .compare-tag.right { right: 8px; }
+.compare input { width: 100%; accent-color: var(--rust); margin-top: 8px; }
+.compare figcaption { font: 1rem/1.45 var(--hand); color: var(--ink-soft); }
+@media (prefers-reduced-motion: reduce) { .ink-num, .trail { transition: none; } }
+.focus .fact, .focus .source-quote, .focus .route-map, .focus .compare, .focus .ponder, .focus .finis { display: none !important; }
+[data-theme="dark"] .fact { background: var(--paper-2); }

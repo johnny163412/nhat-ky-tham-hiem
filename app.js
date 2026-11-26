@@ -144,20 +144,43 @@ const pullSpot = c => {
 // images[0] is the frontispiece above the story; image k sits under section heading k (k >= 1); extras close the story.
 function storyBody(c) {
   const imgs = c.images || [], used = new Set(), terms = Object.keys(GLOSS).sort((a, b) => b.length - a.length), at = pullSpot(c);
+  const met = new Set(), inked = { n: 0 };
   let h = 0;
   const html = c.story.map((p, i) => {
     const quote = i === at ? `<blockquote class="pull">${esc(c.pull)}</blockquote>` : "";
-    if (!p.startsWith("## ")) return quote + `<p>${i ? gloss(esc(p), terms, used) : esc(p)}</p>`; // keep the drop cap paragraph plain
+    if (!p.startsWith("## ")) return quote + `<p>${i ? inkNumbers(people(gloss(esc(p), terms, used), c.people, met), inked) : esc(p)}</p>`; // keep the drop cap paragraph plain
     const im = h ? imgs[h] : null; h++;
-    return quote + `<h2>${esc(p.slice(3))}</h2>${im ? figure(im) : ""}`;
+    const aside = h === 2 && c.fact ? factBox(c) : "";
+    return aside + quote + `<div class="divider" aria-hidden="true"><i></i>${glyph(c.kind)}<i></i></div><h2>${esc(p.slice(3))}</h2>${im ? figure(im) : ""}`;
   }).join("");
-  return html + imgs.slice(Math.max(h, 1)).map(figure).join("");
+  return html + (h < 2 && c.fact ? factBox(c) : "") + imgs.slice(Math.max(h, 1)).map(figure).join("");
 }
+const factBox = c => `<aside class="fact"><strong>Bạn có biết?</strong> ${esc(c.fact.replace(/^Bạn có biết[,:]?\s*/i, ""))}${c.fact_src ? ` <a href="${esc(c.fact_src)}" target="_blank" rel="noopener">Nguồn</a>` : ""}</aside>`;
+// Apply f to the text between tags, skipping text inside glossary buttons and notes.
+const outsideTags = (html, f) => { let depth = 0; return html.split(/(<[^>]+>)/).map(part => {
+  if (part.startsWith("<")) { if (/^<(button|span)\b/.test(part)) depth++; else if (/^<\/(button|span)>/.test(part)) depth--; return part; }
+  return depth ? part : f(part);
+}).join(""); };
+// The first mention of each main person becomes a button that opens a small card from Wikipedia.
+const people = (html, list, met) => !list?.length ? html : outsideTags(html, t => {
+  for (const pp of list) {
+    const n = esc(pp.name), k = t.indexOf(n);
+    if (met.has(pp.name) || k < 0 || isWordChar(t[k - 1]) || isWordChar(t[k + n.length])) continue;
+    met.add(pp.name);
+    t = `${t.slice(0, k)}<button type="button" class="person" data-wiki="${esc(pp.wiki)}" aria-expanded="false">${n}</button><span class="person-card" hidden></span>${t.slice(k + n.length)}`;
+    break; // one per text run keeps indexes simple; later runs pick up the rest
+  }
+  return t;
+});
+// Key numbers (thousands like 1.700, or a number with a unit) get a red ink underline drawn when they scroll into view. At most 5 per story.
+const KEY_NUM = /\d{1,3}(?:\.\d{3})+(?:,\d+)?(?:\s(?:km|m|kg|tấn|người|con|chiếc|năm|dặm))?|\d+(?:,\d+)?\s?(?:km³|km|kg|tấn|%|m)(?![\p{L}])/gu;
+const inkNumbers = (html, inked) => outsideTags(html, t => t.replace(KEY_NUM, m => (inked.n++ < 5 ? `<span class="ink-num">${m}</span>` : m)));
+console.assert(inkNumbers("dài 1.700 m, năm 1288, 43 km", { n: 0 }) === 'dài <span class="ink-num">1.700 m</span>, năm 1288, <span class="ink-num">43 km</span>', "inkNumbers");
 
 // --- reading aids: ink progress line, resume where you left off, listen with the device's Vietnamese voice ---
 const progress = document.getElementById("progress"), POS_KEY = "nhatky-cho-doc";
 const readPos = (() => { try { return JSON.parse(localStorage.getItem(POS_KEY)) || {}; } catch { return {}; } })();
-let reading = null, locMap = null, posTimer, endObs;
+let reading = null, locMap = null, routeMap = null, posTimer, endObs;
 addEventListener("scroll", () => {
   if (!reading) return;
   const art = app.querySelector(".story"); if (!art) return;
@@ -174,7 +197,7 @@ addEventListener("scroll", () => {
   }, 400);
 }, { passive: true });
 
-const plainText = el => { const x = el.cloneNode(true); x.querySelectorAll(".gloss-note").forEach(n => n.remove()); return x.textContent; };
+const plainText = el => { const x = el.cloneNode(true); x.querySelectorAll(".gloss-note, .person-card").forEach(n => n.remove()); return x.textContent; };
 // Prefer neural voices (Edge's "HoaiMy/NamMinh Online (Natural)", Apple's Premium/Enhanced) over the robotic compact ones.
 const voiceRank = v => (/natural|online|neural/i.test(v.name) ? 3 : /premium|enhanced|nâng cao/i.test(v.name) ? 2 : 1);
 const viVoice = () => speechSynthesis.getVoices().filter(v => /^vi/i.test(v.lang)).sort((a, b) => voiceRank(b) - voiceRank(a))[0];
@@ -183,7 +206,7 @@ const sentences = t => [...t.matchAll(/\S.*?(?:[.!?…]+["”’»)]*(?=\s|$)|$)
 console.assert(sentences("Dài 1.700 m. Hết!").length === 2, "sentences");
 // Range over an element's text, skipping glossary notes (the same text plainText() reads).
 function textRange(el, start, end) {
-  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement.closest(".gloss-note") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement.closest(".gloss-note, .person-card") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
   const r = document.createRange(); let pos = 0, n, started = false;
   while ((n = w.nextNode())) {
     if (!started && start < pos + n.length) { r.setStart(n, start - pos); started = true; }
@@ -232,6 +255,20 @@ document.addEventListener("load", e => { if (e.target.classList?.contains("sketc
 document.addEventListener("error", e => { if (e.target.classList?.contains("sketch")) e.target.classList.add("ready"); }, true);
 addEventListener("keydown", e => { if (e.key === "Escape" && !lightbox.open && document.body.classList.contains("focus")) app.querySelector("[data-focus]")?.click(); });
 
+// Person card: Wikipedia's page summary (picture, one-line description, first sentences), fetched on first open.
+async function openPerson(btn) {
+  const card = btn.nextElementSibling, open = btn.getAttribute("aria-expanded") !== "true";
+  btn.setAttribute("aria-expanded", open); card.hidden = !open;
+  if (!open || card.dataset.loaded) return;
+  card.dataset.loaded = "1"; card.textContent = "Đang mở hồ sơ…";
+  const [lang, title] = btn.dataset.wiki.split(/:(.*)/);
+  try {
+    const r = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+    const d = await r.json(), first = (d.extract || "").split(/(?<=\.)\s/).slice(0, 2).join(" ");
+    card.innerHTML = `${d.thumbnail ? `<img src="${esc(d.thumbnail.source)}" alt="" loading="lazy">` : ""}<strong>${esc(d.title)}</strong>${d.description ? `<small>${esc(d.description)}</small>` : ""}<span>${esc(first)}</span><a href="${esc(d.content_urls?.desktop?.page || wikiUrl(btn.dataset.wiki))}" target="_blank" rel="noopener">Wikipedia →</a>`;
+  } catch { card.innerHTML = `<a href="${wikiUrl(btn.dataset.wiki)}" target="_blank" rel="noopener">Xem trên Wikipedia →</a>`; }
+}
+
 // Lightbox, glossary notes: one delegated handler for every story view.
 const lightbox = document.getElementById("lightbox");
 app.addEventListener("click", e => {
@@ -247,6 +284,8 @@ app.addEventListener("click", e => {
     lightbox.querySelector("p").textContent = z.querySelector("img").alt;
     return lightbox.showModal();
   }
+  const who = e.target.closest(".person");
+  if (who) { openPerson(who); return; }
   const g = e.target.closest(".gloss");
   if (g) { const open = g.getAttribute("aria-expanded") !== "true"; g.setAttribute("aria-expanded", open); g.nextElementSibling.hidden = !open; }
 });
@@ -283,12 +322,61 @@ function sfx(kind) {
 }
 document.addEventListener("pointerdown", () => { try { ac ||= new AudioContext(); ac.resume(); } catch {} }, { once: true });
 
+const inkObs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("inked"); inkObs.unobserve(e.target); } }), { rootMargin: "0px 0px -20% 0px" });
+
+// Route map: the path is drawn in ink once the map scrolls into view.
+function drawRoute(route) {
+  const pts = unwrap(route.map(([la, ln]) => [la, ln]));
+  routeMap = L.map("route-map", { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false,
+    keyboard: false, touchZoom: false, attributionControl: false });
+  watercolor().addTo(routeMap);
+  routeMap.fitBounds(L.latLngBounds(pts), { padding: [28, 28], maxZoom: 7 });
+  const line = L.polyline(pts, { color: "#6e2a12", weight: 3, lineCap: "round", className: "trail", interactive: false }).addTo(routeMap);
+  route.forEach(([, , label], i) => L.marker(pts[i], { interactive: false, keyboard: false,
+    icon: L.divIcon({ className: "seal stop", iconSize: [22, 22], html: `${i + 1}` }) }).bindTooltip(label, { permanent: true, direction: "top", offset: [0, -10], className: "route-label" }).addTo(routeMap));
+  const el = line.getElement(), len = el?.getTotalLength?.() || 0;
+  if (el && len) { el.style.strokeDasharray = len; el.style.strokeDashoffset = len; }
+  new IntersectionObserver(([e], o) => { if (e.isIntersecting) { el?.classList.add("drawn"); o.disconnect(); } }, { threshold: .5 }).observe(document.getElementById("route-map"));
+}
+
+// Then and now: two pictures on top of each other, a slider wipes between them.
+const compareBox = cp => `<figure class="compare" style="--cut:50%">
+  <div class="compare-frame"><img class="sketch" src="${pic(cp.after)}" alt="${esc(cp.after.caption)}" loading="lazy"><img class="sketch before" src="${pic(cp.before)}" alt="${esc(cp.before.caption)}" loading="lazy">
+    <span class="compare-tag left">${esc(cp.before.label)}</span><span class="compare-tag right">${esc(cp.after.label)}</span></div>
+  <input type="range" min="0" max="100" value="50" aria-label="Kéo để so ${esc(cp.before.label)} và ${esc(cp.after.label)}">
+  <figcaption>${esc(cp.caption)} Ảnh: <a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(cp.before.file)}" target="_blank" rel="noopener">${esc(cp.before.credit)}</a>; <a href="https://commons.wikimedia.org/wiki/${encodeURIComponent(cp.after.file)}" target="_blank" rel="noopener">${esc(cp.after.credit)}</a></figcaption>
+</figure>`;
+const setupCompare = () => app.querySelectorAll(".compare").forEach(f => { f.querySelector("input").oninput = e => f.style.setProperty("--cut", `${e.target.value}%`); });
+
+// Ambient sound made on the fly (no files): filtered noise that swells like waves, or a thin wind. Off unless asked.
+const AMB_KEY = "nhatky-am-nen";
+let amb = null;
+const stopAmbient = () => { if (!amb) return; const a = amb; amb = null; a.g.gain.setTargetAtTime(0, a.ctx.currentTime, .4); setTimeout(() => a.ctx.close(), 1500); };
+function startAmbient(kind) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(), n = ctx.sampleRate * 4, buf = ctx.createBuffer(1, n, ctx.sampleRate), d = buf.getChannelData(0);
+  let last = 0; for (let i = 0; i < n; i++) { last = (last + .02 * (Math.random() * 2 - 1)) / 1.02; d[i] = last * 3.5; } // brown noise
+  const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+  const f = ctx.createBiquadFilter(), g = ctx.createGain(), lfo = ctx.createOscillator(), depth = ctx.createGain();
+  const sea = kind === "bien";
+  f.type = sea ? "lowpass" : "bandpass"; f.frequency.value = sea ? 520 : 700; f.Q.value = sea ? .7 : 1.4;
+  lfo.frequency.value = sea ? .09 : .05; depth.gain.value = sea ? .05 : 220; // waves swell the volume, wind moves the pitch
+  lfo.connect(depth); depth.connect(sea ? g.gain : f.frequency);
+  g.gain.value = 0; g.gain.setTargetAtTime(sea ? .07 : .045, ctx.currentTime, 1.2);
+  src.connect(f); f.connect(g); g.connect(ctx.destination); src.start(); lfo.start();
+  amb = { ctx, g };
+}
+function setupAmbient(btn, kind) {
+  const set = on => { btn.setAttribute("aria-pressed", on); on ? startAmbient(kind) : stopAmbient(); };
+  btn.onclick = () => { const on = btn.getAttribute("aria-pressed") !== "true"; set(on); try { localStorage.setItem(AMB_KEY, on ? "1" : "0"); } catch {} };
+  try { if (localStorage.getItem(AMB_KEY) === "1") set(true); } catch {} // browsers may keep it silent until the first tap
+}
+
 function renderStory(c) {
   const heads = c.story.filter(p => p.startsWith("## "));
   const fresh = !seen.has(c.id);
   streak = nextStreak(streak, dayNo()); saveStreak();
   sfx("page");
-  app.innerHTML = `<article class="story turn">
+  app.innerHTML = `<article class="story turn" data-kind="${c.kind}">
     <a class="back" href="${lastView}">← ${BACK[lastView] || "Về hành trình"}</a>
     <div class="meta">${yearText(c.year)} · ${esc(c.place)} · ${readMins(c)} phút đọc</div>
     <h1>${esc(c.title)}</h1>
@@ -299,11 +387,17 @@ function renderStory(c) {
       <button class="chip" type="button" data-listen hidden>▶ Nghe kể</button>
       <button class="chip" type="button" data-speed hidden aria-label="Đổi tốc độ đọc">Tốc độ 1×</button>
       <button class="chip" type="button" data-focus aria-pressed="false">Chỉ đọc chữ</button>
+      <button class="chip" type="button" data-ambient aria-pressed="false">${c.kind === "bien" ? "Tiếng sóng" : "Tiếng gió"}</button>
       ${readPos[c.id] ? `<button class="chip" type="button" data-resume>Đọc tiếp chỗ đang dở ↓</button>` : ""}
     </div>
     ${heads.length > 1 ? `<details class="toc"><summary>Mục lục · ${heads.length} phần</summary><ol>${heads.map((t, k) => `<li><button type="button" data-toc="${k}">${esc(t.slice(3))}</button></li>`).join("")}</ol></details>` : ""}
     ${c.images?.[0] ? figure(c.images[0]) : ""}
+    ${c.route ? `<figure class="route-map"><div id="route-map" role="img" aria-label="Đường đi: ${esc(c.route.map(r => r[2]).join(", "))}"></div><figcaption>Đường đi trong câu chuyện: ${esc(c.route.map(r => r[2]).join(" → "))}</figcaption></figure>` : ""}
     <div class="body">${storyBody(c)}</div>
+    ${c.compare ? compareBox(c.compare) : ""}
+    ${c.quote ? `<blockquote class="source-quote"><p>${esc(c.quote.text)}</p><cite>${esc(c.quote.by)}</cite></blockquote>` : ""}
+    <p class="finis"><span aria-hidden="true">❧</span> Hết trang nhật ký · ${esc(c.place)}, ${yearText(c.year)}</p>
+    ${c.ponder ? `<aside class="ponder"><strong>Để ngẫm</strong><p>${esc(c.ponder)}</p></aside>` : ""}
     <div class="end-stamp" aria-live="polite"></div>
     <div class="verdict ${c.verdict}"><strong>${VERDICT[c.verdict]}</strong> · ${esc(c.verdictNote)}</div>
     ${c.sources ? `<h2 class="src-title">Nguồn</h2><ol class="sources">${c.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a></li>`).join("")}</ol>` : ""}
@@ -325,6 +419,10 @@ function renderStory(c) {
     keyboard: false, touchZoom: false, attributionControl: false }).setView([c.lat, c.lng], 4);
   watercolor().addTo(locMap);
   L.circleMarker([c.lat, c.lng], { radius: 6, color: "#6e2a12", weight: 2, fillColor: "#8e3b1f", fillOpacity: .9 }).addTo(locMap);
+  if (c.route) drawRoute(c.route);
+  setupAmbient(app.querySelector("[data-ambient]"), c.kind);
+  app.querySelectorAll(".ink-num").forEach(n => inkObs.observe(n));
+  setupCompare();
   setupListen(app.querySelector("[data-listen]"), app.querySelector("[data-speed]"), [app.querySelector(".story .lead"), ...marks()]);
   // the passport stamp comes when the reader reaches the end, not when the page opens
   if (fresh) {
@@ -1030,6 +1128,8 @@ function renderAbout() {
 function route() {
   if (trekMap) { trekMap.remove(); trekMap = null; }
   if (locMap) { locMap.remove(); locMap = null; }
+  if (routeMap) { routeMap.remove(); routeMap = null; }
+  stopAmbient();
   reading = null; progress.hidden = true; progress.style.transform = "scaleX(0)";
   if ("speechSynthesis" in window) speechSynthesis.cancel();
   endObs?.disconnect(); hiLite(null); document.body.classList.remove("focus");

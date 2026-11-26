@@ -19,6 +19,17 @@ for c in cards:
     assert "pull" not in c or any(c["pull"] in p for p in c["story"] if not p.startswith("## ")), f"{c['id']}: pull quote must be copied from the story"
     assert all(isinstance(im.get("w", 1), int) and isinstance(im.get("h", 1), int) for im in c.get("images", [])), f"{c['id']}: image w/h must be int"
     assert "date" not in c or __import__("re").fullmatch(r"(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])", c["date"]), f"{c['id']}: date must be MM-DD"
+    text = " ".join(x for x in c["story"] if not x.startswith("## "))
+    assert "fact" not in c or (c["fact"].startswith("Bạn có biết") and c.get("fact_src", "").startswith("https://")), f"{c['id']}: fact must start with 'Bạn có biết' and have fact_src"
+    assert "quote" not in c or (c["quote"].get("text") and c["quote"].get("by") and c["quote"]["text"] in text), f"{c['id']}: quote must be copied from the story"
+    assert "ponder" not in c or c["ponder"].rstrip().endswith("?"), f"{c['id']}: ponder must be a question"
+    for pp in c.get("people", []):
+        assert pp.get("name") in text and pp.get("wiki", "")[:3] in ("en:", "vi:"), f"{c['id']}: bad person {pp}"
+    for pt in c.get("route", []):
+        assert len(pt) == 3 and -90 <= pt[0] <= 90 and -180 <= pt[1] <= 180 and pt[2], f"{c['id']}: bad route point {pt}"
+    if "compare" in c:
+        assert all(c["compare"][k].get("file", "").startswith("File:") and c["compare"][k].get("label") and c["compare"][k].get("credit") for k in ("before", "after")), f"{c['id']}: bad compare"
+    assert not any(ch in p for p in c["story"] for ch in "—–"), f"{c['id']}: no em/en dashes in story (STYLE.md)"
     assert -90 <= c.get("lat", 999) <= 90 and -180 <= c.get("lng", 999) <= 180, f"{c['id']}: missing or bad lat/lng"
 
 if "--links" in sys.argv:
@@ -40,7 +51,13 @@ if "--links" in sys.argv:
             except Exception as e:
                 bad.append(c["wiki"]); print(f"FAIL {c['wiki']}: {e}"); break
     for c in cards:
-        for src in c.get("sources", []):
+        for pp in c.get("people", []):  # person cards read Wikipedia's page summary
+            lang, title = pp["wiki"].split(":", 1)
+            time.sleep(1)
+            try: urllib.request.urlopen(urllib.request.Request(f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{urllib.parse.quote(title)}", headers={"User-Agent": "history-journal-check/0.1"}), timeout=15)
+            except Exception as e: bad.append(pp["wiki"]); print(f"FAIL {c['id']} person {pp['wiki']}: {e}")
+    for c in cards:
+        for src in c.get("sources", []) + ([{"url": c["fact_src"]}] if c.get("fact_src") else []):
             time.sleep(1)
             try:
                 urllib.request.urlopen(urllib.request.Request(src["url"], headers={"User-Agent": "history-journal-check/0.1"}), timeout=15)

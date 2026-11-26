@@ -1,5 +1,5 @@
 """Copy every story image from Wikimedia Commons into img/ as WebP, so the site does not depend on Commons
-staying fast (Commons rate-limits bursts). Each image gets "img": "<name>" in cards.json, and two files:
+staying fast (Commons rate-limits bursts). Each image (in "images" and "compare") gets "img": "<name>" in cards.json, and two files:
 img/<name>.webp (up to 960 px wide, story pages) and img/<name>-s.webp (up to 480 px, journal cards).
 Needs cwebp (brew install webp). Run after adding images; images already copied are skipped:
 
@@ -13,7 +13,8 @@ assert name_of("File:A.jpg") == name_of("File:A.jpg") != name_of("File:B.jpg")
 done = lambda n: os.path.exists(f"img/{n}.webp") and os.path.exists(f"img/{n}-s.webp")
 
 cards = json.load(open("cards.json", encoding="utf-8"))
-files = sorted({im["file"] for c in cards for im in c.get("images", []) if not done(name_of(im["file"]))})
+pics = lambda c: c.get("images", []) + ([c["compare"]["before"], c["compare"]["after"]] if c.get("compare") else [])
+files = sorted({im["file"] for c in cards for im in pics(c) if not done(name_of(im["file"]))})
 os.makedirs("img", exist_ok=True)
 info = {}
 for i in range(0, len(files), 40):  # the API takes up to 50 titles a call
@@ -45,7 +46,7 @@ with tempfile.TemporaryDirectory() as tmp:
         time.sleep(3)  # stay well under upload.wikimedia.org rate limits
 
 for c in cards:  # app.js falls back to Commons for images without "img"
-    for im in c.get("images", []):
+    for im in pics(c):
         if done(name_of(im["file"])): im["img"] = name_of(im["file"])
 json.dump(cards, open("cards.json", "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 print(f"{len(files) - len(failed)} copied, failed: {failed}")
