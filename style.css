@@ -130,10 +130,19 @@ a { color: var(--rust); }
 
 /* --- map --- */
 #map-view { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
-#map {
-  height: min(70vh, 720px); min-height: 360px; background: var(--paper-2);
-  border: 2px solid var(--ink); border-radius: 4px; box-shadow: 3px 5px 16px rgba(70, 45, 20, .25);
+#map { height: min(70vh, 720px); min-height: 360px; background: var(--paper-2); border: 1.5px solid var(--ink); }
+/* old-chart neatline: a checkered degree border inside a double rule */
+.neatline {
+  --g: 8px; padding: var(--g); border: 1.5px solid var(--ink); outline: 1px solid var(--ink); outline-offset: 3px;
+  margin: 4px; box-shadow: 3px 5px 16px rgba(70, 45, 20, .25);
+  background:
+    repeating-linear-gradient(90deg, var(--ink) 0 28px, var(--paper) 28px 56px) top / 100% var(--g) no-repeat,
+    repeating-linear-gradient(90deg, var(--paper) 0 28px, var(--ink) 28px 56px) bottom / 100% var(--g) no-repeat,
+    repeating-linear-gradient(0deg, var(--ink) 0 28px, var(--paper) 28px 56px) left / var(--g) 100% no-repeat,
+    repeating-linear-gradient(0deg, var(--paper) 0 28px, var(--ink) 28px 56px) right / var(--g) 100% no-repeat,
+    var(--paper);
 }
+@media (max-width: 560px) { .neatline { --g: 5px; outline-offset: 2px; } }
 .leaflet-tile-pane { filter: sepia(.35) saturate(.85) contrast(.95); }
 .leaflet-container { font-family: var(--serif); }
 .seal {
@@ -213,6 +222,7 @@ a { color: var(--rust); }
 .seal.stop { display: grid; place-items: center; font: 700 .95rem var(--serif); color: #fff6e4; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
 /* the whole decoration pane is multiplied onto tiles + fog, so ocean names read as printed ink */
 .leaflet-decor-pane { mix-blend-mode: multiply; }
+.leaflet-relief-pane { mix-blend-mode: multiply; filter: sepia(.3) contrast(1.15); }
 .ocean svg { width: 100%; height: 100%; overflow: visible; }
 .ocean-name { font: italic 600 19px var(--serif); letter-spacing: .32em; text-transform: uppercase; fill: #4a3220; opacity: .75; }
 .ocean-latin { font: italic 13px var(--serif); letter-spacing: .12em; fill: #6b4a2a; opacity: .7; }

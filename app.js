@@ -578,10 +578,38 @@ const watercolor = () => L.tileLayer("https://tiles.stadiamaps.com/tiles/stamen_
   attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://stamen.com/">Stamen Design</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 });
 
+// Fantasy-map relief: illustrated mountains, hills, dunes and trees (Azgaar's Fantasy Map Generator, MIT, see relief/LICENSE)
+// scattered over real ranges, deserts and forests by make_relief.py, drawn on canvas tiles so 12k icons stay cheap.
+const RELIEF_ICONS = [["mount-1", "mount-2", "mount-3", "mount-4", "mount-5", "mount-6"], ["mountSnow-1", "mountSnow-2", "mountSnow-3"],
+  ["hill-1", "hill-2", "hill-3", "hill-4"], ["dune-1"], ["conifer-1"], ["deciduous-1", "deciduous-2"], ["palm-1"]]; // order matches make_relief.py
+const RELIEF_SIZE = [46, 50, 34, 30, 22, 22, 22];
+const Relief = L.GridLayer.extend({
+  initialize(points, imgs, opts) { this._pts = points; this._imgs = imgs; L.setOptions(this, opts); },
+  createTile(c) {
+    const t = document.createElement("canvas"), s = this.getTileSize(), r = window.devicePixelRatio || 1;
+    t.width = s.x * r; t.height = s.y * r;
+    const ctx = t.getContext("2d"), W = 256 * 2 ** c.z, ox = c.x * s.x, oy = c.y * s.y;
+    ctx.scale(r, r);
+    for (const [lat, lng, k] of this._pts[Math.min(c.z, 5)] || []) {
+      const p = this._map.project([lat, lng], c.z), n = RELIEF_SIZE[k];
+      let x = ((p.x - ox) % W + W) % W; if (x > W - 40) x -= W; // wrapped world copies
+      const y = p.y - oy;
+      if (x < -n || x > s.x + n || y < -4 || y > s.y + n) continue;
+      const v = this._imgs[k], img = v[Math.abs(Math.round(lat * 97 + lng * 31)) % v.length];
+      ctx.drawImage(img, x - n / 2, y - n * .8, n, n);
+    }
+    return t;
+  },
+});
+
 function initMap() {
   map = L.map("map", { worldCopyJump: true, minZoom: 2, maxZoom: 14 }).setView([25, 60], 2);
   // shortcut: Stadia serves these keyless only on localhost; register the domain (free tier) before publishing.
   watercolor().addTo(map);
+  Promise.all([fetch("relief.json").then(r => r.json()), ...RELIEF_ICONS.map(v => Promise.all(v.map(f => {
+    const i = new Image(); i.src = `relief/${f}.svg`; return i.decode().then(() => i);
+  })))]).then(([pts, ...imgs]) => new Relief(pts, imgs, { minZoom: 2, maxZoom: 7, pane: "relief" }).addTo(map))
+    .catch(() => {}); // decoration only: the map works without it
   // Antique chart furniture: a compass rose (click = back to the whole world) and a checkered league scale.
   L.control.scale({ imperial: false, maxWidth: 140, position: "topleft" }).addTo(map);
   const Rose = L.Control.extend({ onAdd() {
@@ -594,6 +622,8 @@ function initMap() {
   } });
   new Rose({ position: "topright" }).addTo(map);
   map.createPane("fog").style.zIndex = 450; // above borders, below pins
+  map.createPane("relief").style.zIndex = 455; // drawn over the fog, the way a chart's mountains sit on its paper
+  map.getPane("relief").style.pointerEvents = "none";
   map.getPane("fog").style.pointerEvents = "none";
   fog = new Fog().addTo(map);
   pins = L.markerClusterGroup({

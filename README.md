@@ -22,3 +22,4 @@ Rồi mở http://localhost:8765.
 
 - `kind`: loại truyện, quyết định ký hiệu trên dấu ghim và huy hiệu hộ chiếu: `bian` (bí ẩn), `tran` (chiến trận), `bien` (biển cả), `vua` (vua chúa), `khampha` (khám phá), `doi` (đời thường).
 - Hành trình (`JOURNEYS`), tên đại dương (`OCEANS`) và bản đồ cổ (`OLD_MAPS`) khai báo ngay đầu phần bản đồ trong `app.js`. Bản đồ cổ thế giới lấy từ Allmaps (David Rumsey Map Collection); bản đồ Taberd 1838 đặt theo khung ước lượng.
+- Núi, đồi, cồn cát, rừng trên bản đồ là biểu tượng của [Fantasy Map Generator](https://github.com/Azgaar/Fantasy-Map-Generator) (MIT, xem `relief/LICENSE`), rải lên đúng các dãy núi, sa mạc, rừng thật theo Natural Earth. Muốn đổi mật độ hay vùng thì sửa `make_relief.py` rồi chạy `python3 make_relief.py` để tạo lại `relief.json`.
