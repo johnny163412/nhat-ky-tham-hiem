@@ -554,16 +554,16 @@ const KINDS = {
 };
 const glyph = k => `<svg viewBox="0 0 12 12" aria-hidden="true">${KINDS[k][1]}</svg>`;
 
-// Sea monsters: public-domain woodcuts and painted details from Wikimedia Commons, placed in empty seas.
-// [lat, lng, Commons file, width px, style ("woodcut" = ink on white, "painted" = feathered colour detail), label, flip]
-const MONSTERS = [
-  [-28, -128, "Dragon 1 Aldrovandi.jpg", 190, "woodcut", "Hic sunt dracones"],
-  [44, -30, "Carta Marina (sea serpent).jpeg", 170, "painted"],
-  [-36, 64, "Dragon 2 Aldrovdani.jpg", 170, "woodcut", "", true],
-  [-44, -18, "Sea monster and ship art detail, from-Münster Thier 2 (cropped).jpg", 160, "painted"],
-  [34, 165, "Sea monster art detail, from- Münster Thier 2 (cropped).jpg", 170, "painted", "", true],
-  [-50, 150, "Ulyssis Aldrovandi BHL41765473.jpg", 150, "woodcut"],
-];
+// Sea decoration the way portolan charts did it: wind-rose lines radiating from a few roses (black for the 8 winds,
+// green half-winds, red quarter-winds) and small line-drawn ships, all on the map's own ink so nothing floats above it.
+const WINDROSES = [[2, -30], [-32, 70], [-14, -132]]; // clear of the ocean names in OCEANS
+const SHIPS = [[36, -55, -8], [-32, -8, 6], [-38, 98, -5], [18, -128, 4], [8, 62, -4]]; // lat, lng, tilt in degrees
+const SHIP_SVG = `<svg viewBox="0 0 80 64" aria-hidden="true"><g fill="none" stroke="#3b2614" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M10 44q30 10 60 0l-5-8H15z" fill="#e9d9b4"/><path d="M15 36h50M18 40h44"/>
+  <path d="M40 36V6M24 36V14M56 36V16M40 6l8 3-8 2M56 16l-6 2 6 2"/>
+  <path d="M30 12q10 4 20 0v12q-10 4-20 0z" fill="#efe2c4"/><path d="M31 25q9 4 18 0v8q-9 3-18 0z" fill="#efe2c4"/>
+  <path d="M17 17q7 3 14 0v13q-7 3-14 0z" fill="#efe2c4"/><path d="M50 19q6 3 12 0v12q-6 3-12 0z" fill="#efe2c4"/>
+  <path d="M4 52q5-3 10 0t10 0 10 0 10 0 10 0 10 0 10 0" stroke-width=".9"/><path d="M14 58q5-3 10 0t10 0 10 0 10 0 10 0" stroke-width=".8"/></g></svg>`;
 // Ocean names lettered like an old chart: spaced italic capitals on a gentle arc, Latin name beneath.
 const OCEANS = [
   [8, -150, "Thái Bình Dương", "Mare Pacificum", 300],
@@ -615,17 +615,23 @@ function initMap() {
   range.value = snapOf(1279);
   // tick marks on the slider where stories exist
   document.getElementById("era-ticks").innerHTML = [...new Set(cards.map(c => snapOf(c.year)))].map(i => `<option value="${i}"></option>`).join("");
-  map.createPane("monsters").style.zIndex = 460; // above the fog; CSS multiplies the whole pane into the map so it reads as printed ink
-  map.getPane("monsters").style.pointerEvents = "none";
+  map.createPane("decor").style.zIndex = 460; // above the fog; CSS multiplies the whole pane into the map so it reads as printed ink
+  map.getPane("decor").style.pointerEvents = "none";
+  const crs = L.CRS.EPSG3857, RUMB = ["#3b2614", "#4f5d2f", "#8e3b1f", "#4f5d2f"]; // on Mercator a rhumb line is straight
+  WINDROSES.forEach(([lat, lng]) => {
+    const c = crs.project(L.latLng(lat, lng));
+    for (let k = 0; k < 32; k++) {
+      const a = k * Math.PI / 16, end = crs.unproject(L.point(c.x + Math.sin(a) * 7e6, c.y + Math.cos(a) * 5.5e6));
+      L.polyline([[lat, lng], end], { pane: "decor", interactive: false, color: RUMB[k % 4], weight: k % 4 ? .5 : .8, opacity: k % 4 ? .22 : .32 }).addTo(map);
+    }
+    L.marker([lat, lng], { pane: "decor", interactive: false, keyboard: false, icon: L.divIcon({ className: "windrose", iconSize: [64, 64], html: ROSE_SVG }) }).addTo(map);
+  });
+  SHIPS.forEach(([lat, lng, tilt]) => L.marker([lat, lng], { pane: "decor", interactive: false, keyboard: false,
+    icon: L.divIcon({ className: "ship", iconSize: [58, 46], html: SHIP_SVG.replace("<svg", `<svg style="transform:rotate(${tilt}deg)"`) }) }).addTo(map));
   OCEANS.forEach((o, i) => L.marker([o[0], o[1]], {
-    pane: "monsters", interactive: false, keyboard: false,
+    pane: "decor", interactive: false, keyboard: false,
     icon: L.divIcon({ className: "ocean", iconSize: [Math.max(o[4], o[2].length * 22), 70], html: oceanLabel(o, i) }),
   }).addTo(map));
-  MONSTERS.forEach(([lat, lng, file, w, kind, label, flip]) => L.marker([lat, lng], {
-    pane: "monsters", interactive: false, keyboard: false,
-    icon: L.divIcon({ className: `monster ${kind}${flip ? " flip" : ""}`, iconSize: [w, w * .6], html: `<img src="${commons(file, 400)}" alt="">` + (label ? `<span>${label}</span>` : "") }),
-  }).addTo(map));
-  map.attributionControl.addAttribution('Quái vật: Olaus Magnus 1539, Münster 1544, Aldrovandi 1640 qua <a href="https://commons.wikimedia.org/">Wikimedia Commons</a>');
   routeLayer = L.layerGroup().addTo(map);
   const om = document.getElementById("oldmap"), fade = document.getElementById("oldmap-fade");
   OLD_MAPS.forEach((m, i) => om.add(new Option(m.name, i)));

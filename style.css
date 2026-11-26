@@ -204,29 +204,23 @@ a { color: var(--rust); }
   .compass:hover svg { transform: none; }
 }
 
-/* --- journeys + sea monsters --- */
+/* --- journeys + sea decoration --- */
 .era-row label { white-space: nowrap; }
 .era select.chip { flex: 1; min-width: 0; padding: 4px 10px; }
 #journey-note { display: block; margin-top: 4px; color: var(--rust); font-size: 1rem; }
 .route { animation: ink-walk 30s linear infinite; }
 @keyframes ink-walk { to { stroke-dashoffset: -220; } }
 .seal.stop { display: grid; place-items: center; font: 700 .95rem var(--serif); color: #fff6e4; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
-.monster img { width: 100%; height: 100%; object-fit: contain; }
-/* the whole pane is multiplied onto tiles + fog: white paper disappears, ink and colour soak into the map */
-.leaflet-monsters-pane { mix-blend-mode: multiply; filter: sepia(.45) saturate(.8); }
-.monster.woodcut img { filter: grayscale(1) contrast(1.9) brightness(1.18); opacity: .8; }
-.monster.painted img {
-  object-fit: cover; opacity: .8; filter: brightness(1.45) contrast(1.3) saturate(.85);
-  -webkit-mask: radial-gradient(closest-side, #000 20%, rgba(0,0,0,.5) 60%, transparent 95%); mask: radial-gradient(closest-side, #000 20%, rgba(0,0,0,.5) 60%, transparent 95%);
-}
+/* the whole decoration pane is multiplied onto tiles + fog, so rhumb lines, ships and ocean names read as printed ink */
+.leaflet-decor-pane { mix-blend-mode: multiply; }
+.ship svg, .windrose svg { width: 100%; height: 100%; overflow: visible; }
+.ship { opacity: .85; }
+.windrose { opacity: .55; }
 .ocean svg { width: 100%; height: 100%; overflow: visible; }
 .ocean-name { font: italic 600 19px var(--serif); letter-spacing: .32em; text-transform: uppercase; fill: #4a3220; opacity: .75; }
 .ocean-latin { font: italic 13px var(--serif); letter-spacing: .12em; fill: #6b4a2a; opacity: .7; }
-.monster.flip img { transform: scaleX(-1); }
-.monster span { color: var(--rust); }
 .fontsize { position: absolute; top: 14px; right: 16px; display: flex; gap: 4px; }
 .fontsize button { font: 600 1rem var(--serif); color: var(--ink); background: var(--paper-2); border: 1px solid var(--edge); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
-.monster span { display: block; text-align: center; font: italic 1rem var(--hand); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .route { animation: none; } }
 
 /* pin glyphs + legend */
@@ -288,7 +282,7 @@ label.chip { display: inline-block; cursor: pointer; }
 /* map unroll: the chart opens from the centre like a scroll, rods at both edges, then the ink soaks in */
 #map-view { position: relative; }
 .unroll #map { animation: unroll 1.5s cubic-bezier(.6, .05, .3, 1) both; }
-.unroll #map .leaflet-tile-pane, .unroll #map .leaflet-monsters-pane { animation: soak 2.4s ease-out both; }
+.unroll #map .leaflet-tile-pane, .unroll #map .leaflet-decor-pane { animation: soak 2.4s ease-out both; }
 .unroll::before, .unroll::after {
   content: ""; position: absolute; top: -6px; z-index: 1000; width: 18px; height: calc(max(360px, min(70vh, 720px)) + 12px);
   border-radius: 9px; pointer-events: none;
@@ -382,7 +376,6 @@ label.chip { display: inline-block; cursor: pointer; }
 .lightbox p { font: 1.05rem/1.4 var(--hand); margin: 0 0 8px; }
 
 /* --- reading frame: shorter lines, airier leading for stacked Vietnamese diacritics --- */
-.story { background: color-mix(in srgb, var(--paper) 55%, transparent); box-shadow: 0 0 36px 26px color-mix(in srgb, var(--paper) 55%, transparent); }
 .story .body > p, .story .lead { max-width: 31em; }
 .story .body > p { line-height: 1.8; margin: 0 0 1em; }
 .story .body h2::before { content: "❦"; display: block; text-align: center; margin: 0 0 12px; font-size: 1.3rem; color: var(--ink-soft); font-weight: 400; }
