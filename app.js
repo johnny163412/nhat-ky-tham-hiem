@@ -157,7 +157,7 @@ function storyBody(c) {
 // --- reading aids: ink progress line, resume where you left off, listen with the device's Vietnamese voice ---
 const progress = document.getElementById("progress"), POS_KEY = "nhatky-cho-doc";
 const readPos = (() => { try { return JSON.parse(localStorage.getItem(POS_KEY)) || {}; } catch { return {}; } })();
-let reading = null, locMap = null, posTimer;
+let reading = null, locMap = null, posTimer, endObs;
 addEventListener("scroll", () => {
   if (!reading) return;
   const art = app.querySelector(".story"); if (!art) return;
@@ -178,27 +178,59 @@ const plainText = el => { const x = el.cloneNode(true); x.querySelectorAll(".glo
 // Prefer neural voices (Edge's "HoaiMy/NamMinh Online (Natural)", Apple's Premium/Enhanced) over the robotic compact ones.
 const voiceRank = v => (/natural|online|neural/i.test(v.name) ? 3 : /premium|enhanced|nâng cao/i.test(v.name) ? 2 : 1);
 const viVoice = () => speechSynthesis.getVoices().filter(v => /^vi/i.test(v.lang)).sort((a, b) => voiceRank(b) - voiceRank(a))[0];
-function setupListen(btn, parts) {
+// Split at . ! ? … followed by a space, so "1.700" stays whole.
+const sentences = t => [...t.matchAll(/\S.*?(?:[.!?…]+["”’»)]*(?=\s|$)|$)/gs)].map(m => [m.index, m.index + m[0].length]);
+console.assert(sentences("Dài 1.700 m. Hết!").length === 2, "sentences");
+// Range over an element's text, skipping glossary notes (the same text plainText() reads).
+function textRange(el, start, end) {
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement.closest(".gloss-note") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+  const r = document.createRange(); let pos = 0, n, started = false;
+  while ((n = w.nextNode())) {
+    if (!started && start < pos + n.length) { r.setStart(n, start - pos); started = true; }
+    if (started && end <= pos + n.length) { r.setEnd(n, end - pos); return r; }
+    pos += n.length;
+  }
+  return null;
+}
+const RATE_KEY = "nhatky-toc-do", RATES = [.8, .95, 1.2];
+let rateIx = (() => { try { const i = RATES.indexOf(Number(localStorage.getItem(RATE_KEY))); return i < 0 ? 1 : i; } catch { return 1; } })();
+const hiLite = r => { if (!window.Highlight || !CSS.highlights) return; if (r) CSS.highlights.set("doc", new Highlight(r)); else CSS.highlights.delete("doc"); };
+function setupListen(btn, speedBtn, parts) {
   if (!("speechSynthesis" in window)) return;
-  const show = () => { btn.hidden = !viVoice(); }; // no Vietnamese voice on this device: reading Vietnamese with another voice is unlistenable
+  const show = () => { btn.hidden = speedBtn.hidden = !viVoice(); }; // no Vietnamese voice on this device: reading Vietnamese with another voice is unlistenable
   show(); speechSynthesis.onvoiceschanged = show;
+  // one utterance per sentence: long ones get cut off in some browsers, and the sentence being read can be highlighted
+  const queue = parts.flatMap(el => { const t = plainText(el); return sentences(t).map(([a, b]) => ({ el, a, b, text: t.slice(a, b) })); });
   let i = 0, state = "idle";
   const label = () => { btn.textContent = state === "play" ? "❚❚ Tạm dừng" : state === "pause" ? "▶ Nghe tiếp" : "▶ Nghe kể"; };
-  const mark = k => parts.forEach((p, n) => p.classList.toggle("speaking", n === k));
+  const speedLabel = () => { speedBtn.textContent = `Tốc độ ${String(RATES[rateIx] / .95).slice(0, 4).replace(".", ",")}×`; };
+  const mark = q => { parts.forEach(p => p.classList.toggle("speaking", p === q?.el)); hiLite(q && textRange(q.el, q.a, q.b)); };
   const speak = () => {
     if (state !== "play") return;
-    if (i >= parts.length) { state = "idle"; i = 0; mark(-1); return label(); }
-    const u = new SpeechSynthesisUtterance(plainText(parts[i])); // one paragraph per utterance: long ones get cut off in some browsers
-    u.voice = viVoice(); u.lang = "vi-VN"; u.rate = .95;
+    if (i >= queue.length) { state = "idle"; i = 0; mark(null); return label(); }
+    const q = queue[i], u = new SpeechSynthesisUtterance(q.text);
+    u.voice = viVoice(); u.lang = "vi-VN"; u.rate = RATES[rateIx];
     u.onend = () => { if (state === "play") { i++; speak(); } };
-    mark(i); parts[i].scrollIntoView({ behavior: "smooth", block: "center" });
-    speechSynthesis.speak(u);
+    if (!queue[i - 1] || queue[i - 1].el !== q.el) q.el.scrollIntoView({ behavior: "smooth", block: "center" });
+    mark(q); speechSynthesis.speak(u);
   };
   btn.onclick = () => {
     if (state === "play") { state = "pause"; speechSynthesis.cancel(); } else { state = "play"; speechSynthesis.cancel(); speak(); }
     label();
   };
+  speedBtn.onclick = () => {
+    rateIx = (rateIx + 1) % RATES.length; speedLabel();
+    try { localStorage.setItem(RATE_KEY, RATES[rateIx]); } catch {}
+    if (state === "play") { speechSynthesis.cancel(); speak(); } // restart the current sentence at the new speed
+  };
+  speedLabel();
 }
+
+// Pictures develop like a photo in a tray: they fade in from blurred sepia once loaded (CSS waits for .ready).
+document.documentElement.classList.add("fade-pics");
+document.addEventListener("load", e => { if (e.target.classList?.contains("sketch")) e.target.classList.add("ready"); }, true);
+document.addEventListener("error", e => { if (e.target.classList?.contains("sketch")) e.target.classList.add("ready"); }, true);
+addEventListener("keydown", e => { if (e.key === "Escape" && !lightbox.open && document.body.classList.contains("focus")) app.querySelector("[data-focus]")?.click(); });
 
 // Lightbox, glossary notes: one delegated handler for every story view.
 const lightbox = document.getElementById("lightbox");
@@ -253,12 +285,11 @@ document.addEventListener("pointerdown", () => { try { ac ||= new AudioContext()
 
 function renderStory(c) {
   const heads = c.story.filter(p => p.startsWith("## "));
-  const fresh = markSeen(c.id);
+  const fresh = !seen.has(c.id);
   streak = nextStreak(streak, dayNo()); saveStreak();
-  sfx("page"); if (fresh) setTimeout(() => sfx("stamp"), 650);
+  sfx("page");
   app.innerHTML = `<article class="story turn">
     <a class="back" href="${lastView}">← ${BACK[lastView] || "Về hành trình"}</a>
-    ${fresh ? `<div class="new-stamp" role="status">Đã đóng dấu vào hộ chiếu · ${seen.size}/${cards.length}${earnedBy(c.id).map(b => `<br>Huy hiệu mới: ${esc(b.name)}`).join("")}</div>` : ""}
     <div class="meta">${yearText(c.year)} · ${esc(c.place)} · ${readMins(c)} phút đọc</div>
     <h1>${esc(c.title)}</h1>
     ${miniTimeline(c)}
@@ -266,11 +297,14 @@ function renderStory(c) {
     <p class="lead">${esc(c.teaser)}</p>
     <div class="story-tools">
       <button class="chip" type="button" data-listen hidden>▶ Nghe kể</button>
+      <button class="chip" type="button" data-speed hidden aria-label="Đổi tốc độ đọc">Tốc độ 1×</button>
+      <button class="chip" type="button" data-focus aria-pressed="false">Chỉ đọc chữ</button>
       ${readPos[c.id] ? `<button class="chip" type="button" data-resume>Đọc tiếp chỗ đang dở ↓</button>` : ""}
     </div>
     ${heads.length > 1 ? `<details class="toc"><summary>Mục lục · ${heads.length} phần</summary><ol>${heads.map((t, k) => `<li><button type="button" data-toc="${k}">${esc(t.slice(3))}</button></li>`).join("")}</ol></details>` : ""}
     ${c.images?.[0] ? figure(c.images[0]) : ""}
     <div class="body">${storyBody(c)}</div>
+    <div class="end-stamp" aria-live="polite"></div>
     <div class="verdict ${c.verdict}"><strong>${VERDICT[c.verdict]}</strong> · ${esc(c.verdictNote)}</div>
     ${c.sources ? `<h2 class="src-title">Nguồn</h2><ol class="sources">${c.sources.map(s => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a></li>`).join("")}</ol>` : ""}
     <h2 class="src-title">Đọc tiếp</h2>
@@ -291,7 +325,19 @@ function renderStory(c) {
     keyboard: false, touchZoom: false, attributionControl: false }).setView([c.lat, c.lng], 4);
   watercolor().addTo(locMap);
   L.circleMarker([c.lat, c.lng], { radius: 6, color: "#6e2a12", weight: 2, fillColor: "#8e3b1f", fillOpacity: .9 }).addTo(locMap);
-  setupListen(app.querySelector("[data-listen]"), [app.querySelector(".story .lead"), ...marks()]);
+  setupListen(app.querySelector("[data-listen]"), app.querySelector("[data-speed]"), [app.querySelector(".story .lead"), ...marks()]);
+  // the passport stamp comes when the reader reaches the end, not when the page opens
+  if (fresh) {
+    const slot = app.querySelector(".end-stamp");
+    endObs = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      endObs.disconnect(); markSeen(c.id); sfx("stamp");
+      slot.innerHTML = `<div class="new-stamp">Đã đóng dấu vào hộ chiếu · ${seen.size}/${cards.length}${earnedBy(c.id).map(b => `<br>Huy hiệu mới: ${esc(b.name)}`).join("")}</div>`;
+    });
+    endObs.observe(slot);
+  }
+  const focusBtn = app.querySelector("[data-focus]");
+  focusBtn.onclick = () => { const on = document.body.classList.toggle("focus"); focusBtn.setAttribute("aria-pressed", on); focusBtn.textContent = on ? "Hiện lại mọi thứ" : "Chỉ đọc chữ"; };
   app.querySelector("[data-random]").onclick = goRandom;
   app.querySelector("[data-share]").onclick = e => sharePostcard(e.currentTarget, () => drawStoryCard(c), c.id, new URL(`c/${c.id}.html`, location.href).href);
 }
@@ -986,6 +1032,7 @@ function route() {
   if (locMap) { locMap.remove(); locMap = null; }
   reading = null; progress.hidden = true; progress.style.transform = "scaleX(0)";
   if ("speechSynthesis" in window) speechSynthesis.cancel();
+  endObs?.disconnect(); hiLite(null); document.body.classList.remove("focus");
   const id = decodeURIComponent(location.hash.split("/c/")[1] || "");
   const card = cards.find(c => c.id === id);
   const trek = location.hash.match(/^#\/hanh-trinh\/(\d+)$/), ji = trek && +trek[1];

@@ -510,3 +510,45 @@ label.chip { display: inline-block; cursor: pointer; }
 .quiz-form input { width: 100%; accent-color: var(--rust); }
 .quiz-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .quiz-end { font: 1.15rem var(--serif); }
+/* --- reading polish --- */
+.story .body > p, .story .lead, .fig figcaption { text-wrap: pretty; } /* no lone word on the last line */
+.story h1, .story .body h2, .src-title { text-wrap: balance; }
+/* pictures develop from blurred sepia once loaded */
+.fade-pics .sketch { transition: opacity .9s ease, filter 1.4s ease; }
+.fade-pics .sketch:not(.ready) { opacity: 0; filter: blur(8px) sepia(1); }
+/* frontispiece: slow documentary push-in */
+.story > .fig .mount { overflow: hidden; }
+.story > .fig .sketch.ready { animation: push-in 22s ease-out .3s both; }
+@keyframes push-in { from { transform: scale(1); } to { transform: scale(1.09) translate(-1.5%, -1%); } }
+/* phones: the frontispiece runs edge to edge */
+@media (max-width: 600px) {
+  .story > .fig { margin-inline: -16px; }
+  .story > .fig .mount { padding: 0; box-shadow: none; }
+  .story > .fig .mount::before, .story > .fig .mount::after { display: none; }
+  .story > .fig figcaption { padding: 0 16px; }
+}
+/* wide screens: glossary notes sit in the right margin like handwritten notes */
+@media (min-width: 1180px) {
+  .story .body > p { position: relative; }
+  .story .body > p .gloss-note, .story .body > p .gloss-note[hidden] {
+    display: block; position: absolute; left: calc(100% + 28px); width: 210px; margin: 0; padding: 0 0 0 10px;
+    font: .98rem/1.35 var(--hand); background: none; border-left: 2px solid var(--rust); transform: rotate(-1deg);
+  }
+  .story .body > p .gloss { cursor: default; }
+}
+/* ink progress: a ragged brush stroke across the top */
+.progress { height: 5px; filter: url(#torn); background: linear-gradient(90deg, color-mix(in srgb, var(--rust) 70%, transparent), var(--rust)); }
+/* stamp lands where the story ends */
+.end-stamp { min-height: 1px; text-align: center; }
+.end-stamp .new-stamp { margin: 18px auto 6px; font-size: 1.1rem; }
+/* focus mode: only the words */
+.focus .masthead, .focus .foot, .focus .story .back, .focus .story .meta, .focus .mini-tl, .focus .locator, .focus .toc,
+.focus .story-tools > :not([data-focus]), .focus .next-reads, .focus .next-reads + .actions, .focus .story .src-title, .focus .sources, .focus .fig { display: none !important; }
+.focus .story-tools { position: sticky; top: 8px; z-index: 5; justify-content: flex-end; }
+.focus main { padding-top: 24px; }
+/* the sentence being read aloud */
+::highlight(doc) { background-color: color-mix(in srgb, var(--ochre) 38%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .story > .fig .sketch.ready { animation: none; }
+  .fade-pics .sketch { transition: none; }
+}
