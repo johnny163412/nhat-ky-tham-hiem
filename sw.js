@@ -1,5 +1,5 @@
 // Network first, cache as fallback: new content shows at once online, the last copy works offline.
-const CACHE = "nhatky-v4";
+const CACHE = "nhatky-v5";
 const SHELL = ["./", "index.html", "style.css", "app.js", "cards.json", "glossary.json", "icon.svg", "manifest.webmanifest"];
 
 self.addEventListener("install", e => e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))));
