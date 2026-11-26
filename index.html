@@ -22,8 +22,6 @@
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
     <filter id="torn" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency=".045" numOctaves="4" seed="7"/><feDisplacementMap in="SourceGraphic" scale="9"/></filter>
     <filter id="smudge"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="3" result="n"/><feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.1 1.5" result="holes"/><feComposite in="SourceGraphic" in2="holes" operator="in" result="ink"/><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="9" result="w"/><feDisplacementMap in="ink" in2="w" scale="2.5"/></filter>
-    <!-- #handdrawn: lines wobble like a pen held by hand, and the ink is worn through in places like an old print -->
-    <filter id="handdrawn" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency=".025" numOctaves="3" seed="5" result="w"/><feDisplacementMap in="SourceGraphic" in2="w" scale="6" xChannelSelector="R" yChannelSelector="G" result="wob"/><feTurbulence type="fractalNoise" baseFrequency=".6" numOctaves="2" seed="8" result="g"/><feColorMatrix in="g" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.3 1.55" result="worn"/><feComposite in="wob" in2="worn" operator="in"/></filter>
   </svg>
   <header class="masthead">
     <a class="brand" href="#/">Nhật Ký Thám Hiểm</a>

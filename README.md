@@ -21,4 +21,4 @@ Rồi mở http://localhost:8765.
 - Trường `date` (tùy chọn, dạng `MM-DD`) là ngày xảy ra sự kiện trong năm `year`; chuyện nào trong vòng 3 ngày quanh hôm nay sẽ lên "Ngày này năm xưa".
 
 - `kind`: loại truyện, quyết định ký hiệu trên dấu ghim và huy hiệu hộ chiếu: `bian` (bí ẩn), `tran` (chiến trận), `bien` (biển cả), `vua` (vua chúa), `khampha` (khám phá), `doi` (đời thường).
-- Hành trình (`JOURNEYS`), đường la bàn (`WINDROSES`), tàu buồm (`SHIPS`), tên đại dương (`OCEANS`) và bản đồ cổ (`OLD_MAPS`) khai báo ngay đầu phần bản đồ trong `app.js`. Bản đồ cổ thế giới lấy từ Allmaps (David Rumsey Map Collection); bản đồ Taberd 1838 đặt theo khung ước lượng.
+- Hành trình (`JOURNEYS`), tên đại dương (`OCEANS`) và bản đồ cổ (`OLD_MAPS`) khai báo ngay đầu phần bản đồ trong `app.js`. Bản đồ cổ thế giới lấy từ Allmaps (David Rumsey Map Collection); bản đồ Taberd 1838 đặt theo khung ước lượng.

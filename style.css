@@ -211,12 +211,8 @@ a { color: var(--rust); }
 .route { animation: ink-walk 30s linear infinite; }
 @keyframes ink-walk { to { stroke-dashoffset: -220; } }
 .seal.stop { display: grid; place-items: center; font: 700 .95rem var(--serif); color: #fff6e4; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
-/* the whole decoration pane is multiplied onto tiles + fog, so rhumb lines, ships and ocean names read as printed ink */
-.leaflet-decor-pane { mix-blend-mode: multiply; filter: url(#handdrawn) sepia(.6); opacity: .9; }
-.rose-ctl svg { filter: url(#handdrawn); }
-.ship svg, .windrose svg { width: 100%; height: 100%; overflow: visible; }
-.ship { opacity: .85; }
-.windrose { opacity: .55; }
+/* the whole decoration pane is multiplied onto tiles + fog, so ocean names read as printed ink */
+.leaflet-decor-pane { mix-blend-mode: multiply; }
 .ocean svg { width: 100%; height: 100%; overflow: visible; }
 .ocean-name { font: italic 600 19px var(--serif); letter-spacing: .32em; text-transform: uppercase; fill: #4a3220; opacity: .75; }
 .ocean-latin { font: italic 13px var(--serif); letter-spacing: .12em; fill: #6b4a2a; opacity: .7; }
