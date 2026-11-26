@@ -45,9 +45,12 @@ function todayCard(now = new Date()) {
   return { card: byId[dayNo(now) % byId.length], label: `Trang hôm nay · ${now.getDate()}/${now.getMonth() + 1}` };
 }
 
+// Journal and passport pages sit in the same double rule and engraved corners as the map.
+const folio = html => `<div class="folio">${["tl", "tr", "bl", "br"].map(k => `<i class="corner ${k}" aria-hidden="true"></i>`).join("")}${html}</div>`;
+
 function renderFeed() {
   const { card: t, label } = todayCard(), s = liveStreak(streak), readToday = streak.last === dayNo();
-  app.innerHTML = `<a class="today" href="#/c/${esc(t.id)}">
+  app.innerHTML = folio(`<a class="today" href="#/c/${esc(t.id)}">
       <span class="today-ribbon">${esc(label)}</span>
       ${s ? `<span class="streak">${readToday ? `Đã đi ${s} ngày liền` : `Lật một trang hôm nay để giữ chuỗi ${s} ngày`}</span>` : ""}
       <span class="meta">${KINDS[t.kind][0]} · ${yearText(t.year)} · ${esc(t.place)}</span>
@@ -62,7 +65,7 @@ function renderFeed() {
       <div class="meta">${yearText(c.year)} · ${esc(c.place)} · ${readMins(c)} phút đọc</div>
       <h2>${esc(c.title)}</h2>
       <p>${esc(c.teaser)}</p>
-    </a></li>`).join("")}</ul>`;
+    </a></li>`).join("")}</ul>`);
 }
 
 // Commons serves a resized copy of any file through Special:FilePath.
@@ -354,7 +357,7 @@ const stampSvg = c => { const k = `s-${c.id}`; return `<svg viewBox="0 0 140 140
 
 function renderPassport() {
   const done = cards.filter(c => seen.has(c.id)).sort((a, b) => a.year - b.year);
-  app.innerHTML = `<section class="passport">
+  app.innerHTML = folio(`<section class="passport">
     <h1>Hộ chiếu nhà thám hiểm</h1>
     <p class="meta">Đã khám phá ${done.length} / ${cards.length} nơi. Mỗi câu chuyện bạn đọc là một con dấu, và sương mù trên bản đồ tan dần quanh nơi đó.</p>
     <p class="streak-line"><strong>${liveStreak(streak)}</strong> ngày đi liên tiếp · kỷ lục ${streak.best} ngày · ${"⛺".repeat(streak.freeze) || "chưa có"} trạm nghỉ
@@ -374,7 +377,7 @@ function renderPassport() {
     <p class="meta">Hộ chiếu chỉ nằm trong trình duyệt này. Lưu ra tệp để mang sang máy khác hoặc phòng khi trình duyệt xóa dữ liệu.</p>
     <button class="chip" type="button" id="save-passport">Lưu hộ chiếu ra tệp</button>
     <label class="chip">Mở hộ chiếu từ tệp<input type="file" id="load-passport" accept=".json,application/json" hidden></label>
-  </section>`;
+  </section>`);
   document.getElementById("save-passport").onclick = () => {
     const file = new File([JSON.stringify({ app: "nhatky", v: 1, seen: [...seen], streak })], `ho-chieu-nhat-ky-${new Date().toISOString().slice(0, 10)}.json`, { type: "application/json" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = file.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
@@ -685,6 +688,9 @@ function initMap() {
   document.getElementById("era-ticks").innerHTML = [...new Set(cards.map(c => snapOf(c.year)))].map(i => `<option value="${i}"></option>`).join("");
   map.createPane("decor").style.zIndex = 460; // above the fog; CSS multiplies the whole pane into the map so it reads as printed ink
   map.getPane("decor").style.pointerEvents = "none";
+  // the creatures are chart decoration for the open ocean; zoomed in on a coast they would just float over the water
+  const deep = () => map.getContainer().classList.toggle("deep", map.getZoom() > 5);
+  map.on("zoomend", deep); deep();
   SEA_ART.forEach(([lat, lng, f, w, flip]) => L.marker([lat, lng], { pane: "decor", interactive: false, keyboard: false,
     icon: L.divIcon({ className: "sea-art", iconSize: [w, w], html: `<img src="sea/${f}.png" alt=""${flip ? ' style="transform:scaleX(-1)"' : ""}>` }) }).addTo(map));
   OCEANS.forEach((o, i) => L.marker([o[0], o[1]], {

@@ -75,7 +75,7 @@ a { color: var(--rust); }
 .feed li:nth-child(even) .page { transform: rotate(.5deg); }
 .page:hover { transform: rotate(0) translateY(-2px); }
 .meta { font: 1.05rem var(--hand); color: var(--ink-soft); }
-.page h2 { font: 700 1.55rem/1.25 var(--serif); margin: 4px 0 8px; }
+.page h2 { font: 600 1.5rem/1.3 var(--title); margin: 4px 0 8px; }
 .page p { margin: 0; }
 
 .sketch {
@@ -144,6 +144,12 @@ a { color: var(--rust); }
     var(--paper);
 }
 .neatline { position: relative; }
+/* journal + passport pages: the map's double rule and engraved corners around the whole page */
+.folio {
+  position: relative; padding: 44px 26px; margin: 6px; border: 1.5px solid var(--ink); outline: 1px solid var(--ink); outline-offset: 4px;
+}
+.folio .corner { width: 88px; height: 88px; }
+.passport h2.src-title { text-align: center; }
 /* corner ornament: S. H. Redmond, public domain (Wikimedia Commons), inked in the theme colour through a mask */
 .corner {
   position: absolute; z-index: 1000; width: 112px; height: 112px; pointer-events: none; background: var(--ink);
@@ -168,7 +174,8 @@ a { color: var(--rust); }
 .neatline .leaflet-left .leaflet-control { margin-left: 44px; }
 .neatline .leaflet-right .leaflet-control { margin-right: 44px; }
 @media (max-width: 560px) { .neatline { --g: 5px; outline-offset: 2px; } }
-@media (max-width: 560px) { .cartouche { width: 160px; top: 12px; } .cartouche span { font-size: .55rem; top: 45%; } .cartouche small { font-size: .62rem; }
+@media (max-width: 560px) { .folio { padding: 36px 12px; margin: 4px; } .folio .corner { width: 60px; height: 60px; }
+  .cartouche { width: 160px; top: 12px; } .cartouche span { font-size: .55rem; top: 45%; } .cartouche small { font-size: .62rem; }
   .corner { width: 72px; height: 72px; } .neatline .leaflet-control { margin-top: 28px !important; margin-left: 28px !important; margin-right: 28px !important; } }
 .leaflet-tile-pane { filter: sepia(.35) saturate(.85) contrast(.95); }
 .leaflet-container { font-family: var(--serif); }
@@ -217,7 +224,7 @@ a { color: var(--rust); }
   animation: stamp-in .45s cubic-bezier(.3, 1.6, .5, 1) both;
 }
 @keyframes stamp-in { from { transform: scale(2.2) rotate(-14deg); opacity: 0; } to { transform: scale(1) rotate(-4deg); opacity: 1; } }
-.passport h1 { font: 700 clamp(1.8rem, 6vw, 2.4rem)/1.2 var(--serif); margin: 6px 0 4px; }
+.passport h1 { font: 700 clamp(1.8rem, 6vw, 2.4rem)/1.25 var(--title); margin: 6px 0 4px; }
 .stamps { list-style: none; padding: 0; margin: 20px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 18px; }
 .visa {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -250,6 +257,7 @@ a { color: var(--rust); }
 /* the whole decoration pane is multiplied onto tiles + fog, so ocean names read as printed ink */
 .leaflet-decor-pane { mix-blend-mode: multiply; }
 .sea-art img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: .7; filter: sepia(1); }
+.deep .sea-art { display: none; }
 .leaflet-relief-pane { mix-blend-mode: multiply; filter: sepia(.3) contrast(1.15); }
 .ocean svg { width: 100%; height: 100%; overflow: visible; }
 .ocean-name { font: italic 600 19px var(--serif); letter-spacing: .32em; text-transform: uppercase; fill: #4a3220; opacity: .75; }
@@ -303,7 +311,7 @@ a { color: var(--rust); }
   position: absolute; top: -12px; left: 16px; padding: 2px 14px; font: 1rem var(--hand);
   color: #fff6e4; background: var(--rust); clip-path: polygon(0 0, 100% 0, 94% 50%, 100% 100%, 0 100%, 6% 50%);
 }
-.today strong { font: 700 1.5rem/1.25 var(--serif); }
+.today strong { font: 600 1.5rem/1.3 var(--title); }
 .today-go { font: 1.1rem var(--hand); color: var(--rust); justify-self: end; }
 .streak { font: .95rem var(--hand); color: var(--rust); }
 .streak-line { font-size: 1.05rem; }
