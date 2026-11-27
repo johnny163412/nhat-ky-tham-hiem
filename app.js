@@ -381,7 +381,7 @@ function renderStory(c) {
     <div class="meta">${yearText(c.year)} · ${esc(c.place)} · ${readMins(c)} phút đọc</div>
     <h1>${esc(c.title)}</h1>
     ${miniTimeline(c)}
-    <figure class="locator"><div id="locator" role="img" aria-label="Vị trí trên bản đồ: ${esc(c.place)}"></div><figcaption>© Stadia Maps, Stamen, OpenStreetMap</figcaption></figure>
+    <figure class="locator"><div id="locator" role="img" aria-label="Vị trí trên bản đồ: ${esc(c.place)}"></div><figcaption>© Stadia Maps, Stamen, OpenStreetMap${oldMapFor(c) ? ` <button type="button" class="chip" data-oldmap aria-pressed="false">Phủ ${esc(oldMapFor(c).name)}</button>` : ""}</figcaption></figure>
     <p class="lead">${esc(c.teaser)}</p>
     <div class="story-tools">
       <button class="chip" type="button" data-listen hidden>▶ Nghe kể</button>
@@ -419,6 +419,11 @@ function renderStory(c) {
     keyboard: false, touchZoom: false, attributionControl: false }).setView([c.lat, c.lng], 4);
   watercolor().addTo(locMap);
   L.circleMarker([c.lat, c.lng], { radius: 6, color: "#6e2a12", weight: 2, fillColor: "#8e3b1f", fillOpacity: .9 }).addTo(locMap);
+  const ob = app.querySelector("[data-oldmap]");
+  if (ob) { const m = oldMapFor(c); let layer; ob.onclick = () => {
+    const on = ob.getAttribute("aria-pressed") !== "true"; ob.setAttribute("aria-pressed", on);
+    if (on) (layer ||= new WarpedImage(commons(m.image, 2000), m.corners, { opacity: .85 })).addTo(locMap); else layer.remove();
+  }; }
   if (c.route) drawRoute(c.route);
   setupAmbient(app.querySelector("[data-ambient]"), c.kind);
   app.querySelectorAll(".ink-num").forEach(n => inkObs.observe(n));
@@ -737,6 +742,8 @@ const WarpedImage = L.Layer.extend({
   },
 });
 let oldLayer = null;
+// Stories set inside an old map that covers one country (Taberd's Vietnam) can lay it over their small locator map.
+const oldMapFor = c => OLD_MAPS.find(m => m.view && c.lat >= m.view[0][0] && c.lat <= m.view[1][0] && c.lng >= m.view[0][1] && c.lng <= m.view[1][1]);
 
 // Pin glyphs by kind of story, drawn in a 12x12 box.
 const KINDS = {
@@ -864,6 +871,15 @@ function initMap() {
     return b;
   } });
   new Rose({ position: "topright" }).addTo(map);
+  if ("geolocation" in navigator) new (L.Control.extend({ onAdd() {
+    const b = L.DomUtil.create("button", "chip near-ctl");
+    b.type = "button"; b.textContent = "Gần tôi"; b.title = "Tìm những câu chuyện gần chỗ bạn";
+    L.DomEvent.disableClickPropagation(b);
+    b.onclick = () => navigator.geolocation.getCurrentPosition(p => nearMe({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => { document.getElementById("journey-note").textContent = "Không lấy được vị trí. Hãy cho phép trình duyệt dùng vị trí rồi thử lại."; },
+      { timeout: 10000, maximumAge: 600000 });
+    return b;
+  } }))({ position: "topright" }).addTo(map);
   map.createPane("fog").style.zIndex = 450; // above borders, below pins
   map.createPane("relief").style.zIndex = 455; // drawn over the fog, the way a chart's mountains sit on its paper
   map.getPane("relief").style.pointerEvents = "none";
@@ -928,6 +944,19 @@ function initMap() {
   range.oninput = () => { era = +range.value; journey = null; pick.value = ""; drawPins(); };
   document.getElementById("era-all").onclick = () => { era = null; journey = null; pick.value = ""; drawPins(); };
   drawPins();
+}
+
+// Your position never leaves the browser: it only picks the three nearest stories.
+let meMarker;
+function nearMe(me) {
+  const near = cards.map(c => [km(me, c), c]).sort((a, b) => a[0] - b[0]).slice(0, 3);
+  era = null; journey = null; document.getElementById("journey").value = ""; drawPins();
+  meMarker?.remove();
+  meMarker = L.circleMarker([me.lat, me.lng], { radius: 7, color: "#1f4e6e", weight: 2, fillColor: "#3b7ea8", fillOpacity: .9 }).addTo(map)
+    .bindPopup(`<div class="meta">Bạn đang ở đây</div><h3>Ba câu chuyện gần bạn nhất</h3><ul class="near-list">${near.map(([d, c]) =>
+      `<li><a href="#/c/${esc(c.id)}">${esc(c.title)}</a> <span class="meta">${Math.round(d).toLocaleString("vi")} km</span></li>`).join("")}</ul>`);
+  map.once("moveend", () => meMarker.openPopup());
+  map.flyToBounds(L.latLngBounds(unwrap([[me.lat, me.lng], ...near.map(([, c]) => [c.lat, c.lng])])), { padding: [50, 50], maxZoom: 9, duration: 1.2 });
 }
 
 function drawPins() {

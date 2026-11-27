@@ -602,3 +602,10 @@ label.chip { display: inline-block; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .ink-num, .trail { transition: none; } }
 .focus .fact, .focus .source-quote, .focus .route-map, .focus .compare, .focus .ponder, .focus .finis { display: none !important; }
 [data-theme="dark"] .fact { background: var(--paper-2); }
+
+/* "Gần tôi" under the compass rose, and its popup list */
+.near-ctl { margin-top: 6px; }
+.near-list { margin: .3em 0 0; padding-left: 1.1em; }
+.near-list li { margin: .2em 0; }
+.locator figcaption .chip { margin-left: .5em; font-size: .85em; padding: .15em .6em; }
+.locator figcaption .chip[aria-pressed="true"] { background: var(--ink, #3b2414); color: var(--paper, #f4ead5); }
