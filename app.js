@@ -381,7 +381,7 @@ function renderStory(c) {
     <div class="meta">${yearText(c.year)} · ${esc(c.place)} · ${readMins(c)} phút đọc</div>
     <h1>${esc(c.title)}</h1>
     ${miniTimeline(c)}
-    <figure class="locator"><div id="locator" role="img" aria-label="Vị trí trên bản đồ: ${esc(c.place)}"></div><figcaption>© Stadia Maps, Stamen, OpenStreetMap${oldMapFor(c) ? ` <button type="button" class="chip" data-oldmap aria-pressed="false">Phủ ${esc(oldMapFor(c).name)}</button>` : ""}</figcaption></figure>
+    <figure class="locator"><div id="locator" role="img" aria-label="Vị trí trên bản đồ: ${esc(c.place)}"></div><figcaption>© Stadia Maps, Stamen, OpenStreetMap${oldMapFor(c) ? ` <button type="button" class="chip" data-oldmap aria-pressed="false">Phủ bản đồ cổ: ${esc(oldMapFor(c).name)}</button>` : ""}</figcaption></figure>
     <p class="lead">${esc(c.teaser)}</p>
     <div class="story-tools">
       <button class="chip" type="button" data-listen hidden>▶ Nghe kể</button>
@@ -422,7 +422,7 @@ function renderStory(c) {
   const ob = app.querySelector("[data-oldmap]");
   if (ob) { const m = oldMapFor(c); let layer; ob.onclick = () => {
     const on = ob.getAttribute("aria-pressed") !== "true"; ob.setAttribute("aria-pressed", on);
-    if (on) (layer ||= new WarpedImage(commons(m.image, 2000), m.corners, { opacity: .85 })).addTo(locMap); else layer.remove();
+    if (on) (layer ||= oldLayerOf(m).setOpacity(.85)).addTo(locMap); else layer.remove();
   }; }
   if (c.route) drawRoute(c.route);
   setupAmbient(app.querySelector("[data-ambient]"), c.kind);
@@ -716,9 +716,21 @@ const OLD_MAPS = [
   { name: "Hải đồ Mercator, Arrowsmith 1808", tiles: "https://allmaps.xyz/maps/1fd2f93a84e47c11/{z}/{x}/{y}.png", src: "David Rumsey Map Collection" },
   // Corners (top-left, top-right, bottom-left) from a least-squares affine fit on 7 landmarks
   // (Hà Nội, Huế, Đà Nẵng, Gia Định, Cam Ranh, Mũi Cà Mau, Côn Đảo); residuals 5–38 km are Taberd's own 1838 errors.
-  { name: "An Nam đại quốc họa đồ, Taberd 1838", image: "An Nam Dai Quoc Hoa Do by Jean Louis Taberd 1838.jpg",
+  { name: "An Nam đại quốc họa đồ, Taberd 1838", image: "An Nam Dai Quoc Hoa Do by Jean Louis Taberd 1838.jpg", img: "taberd-1838",
     corners: [[23.5066, 102.2994], [23.3874, 112.5116], [7.4399, 101.8514]], view: [[8, 100], [24, 112]], src: "Wikimedia Commons" },
+  // Regional maps; "view" is the box their control points cover, so stories inside it can offer the map on their locator.
+  { name: "Châu Âu và các đường trạm", tiles: "https://allmaps.xyz/maps/6fe3f990a4932705/{z}/{x}/{y}.png", view: [[36, -9], [68, 56]],
+    src: "Map Exhibiting the Great Post Roads ... of Europe, David Rumsey Map Collection" },
+  { name: "Biển Địa Trung Hải, hải đồ Pháp", tiles: "https://allmaps.xyz/maps/be92cf3c72cd835d/{z}/{x}/{y}.png", view: [[31, -6], [46, 36]],
+    src: "La Mer Méditerranée et les costes des Estats qui la borne, David Rumsey Map Collection" },
+  { name: "Tiểu Á và Lưỡng Hà thời Ottoman", tiles: "https://allmaps.xyz/maps/621654da86005cfe/{z}/{x}/{y}.png", view: [[30, 27], [41, 50]],
+    src: "Nouvelle carte générale des provinces asiatiques de l'Empire Ottoman, Library of Congress" },
+  { name: "Trung Hoa, bản đồ in ở Osaka", tiles: "https://allmaps.xyz/maps/467301a03b7f7c4c/{z}/{x}/{y}.png", view: [[18, 76], [54, 141]],
+    src: "A map of China, K. Saito, Osaka, David Rumsey Map Collection" },
 ];
+const oldLayerOf = m => m.tiles
+  ? L.tileLayer(m.tiles, { maxNativeZoom: 9, attribution: `Bản đồ cổ: <a href="https://allmaps.org">Allmaps</a>, ${m.src}` })
+  : new WarpedImage(m.img ? `img/${m.img}.webp` : commons(m.image, 2000), m.corners, { attribution: `Bản đồ cổ: ${m.src}` });
 
 // An image pinned by three corners, so it can be rotated and sheared to fit (Leaflet's imageOverlay only stretches a box).
 const WarpedImage = L.Layer.extend({
@@ -742,8 +754,10 @@ const WarpedImage = L.Layer.extend({
   },
 });
 let oldLayer = null;
-// Stories set inside an old map that covers one country (Taberd's Vietnam) can lay it over their small locator map.
-const oldMapFor = c => OLD_MAPS.find(m => m.view && c.lat >= m.view[0][0] && c.lat <= m.view[1][0] && c.lng >= m.view[0][1] && c.lng <= m.view[1][1]);
+// A story inside a regional old map can lay it over its small locator; the tightest map wins (Taberd beats China for Hà Nội).
+const area = ([[a, b], [c, d]]) => (c - a) * (d - b);
+const oldMapFor = c => OLD_MAPS.filter(m => m.view && c.lat >= m.view[0][0] && c.lat <= m.view[1][0] && c.lng >= m.view[0][1] && c.lng <= m.view[1][1])
+  .sort((x, y) => area(x.view) - area(y.view))[0];
 
 // Pin glyphs by kind of story, drawn in a 12x12 box.
 const KINDS = {
@@ -912,9 +926,7 @@ function initMap() {
     if (oldLayer) map.removeLayer(oldLayer);
     const m = OLD_MAPS[om.value];
     fade.hidden = !m;
-    oldLayer = m && (m.tiles
-      ? L.tileLayer(m.tiles, { maxNativeZoom: 9, attribution: `Bản đồ cổ: <a href="https://allmaps.org">Allmaps</a>, ${m.src}` })
-      : new WarpedImage(commons(m.image, 2000), m.corners, { attribution: `Bản đồ cổ: ${m.src}` }));
+    oldLayer = m && oldLayerOf(m);
     if (!oldLayer) return;
     oldLayer.setOpacity(fade.value / 100).addTo(map);
     if (m.view) map.flyToBounds(m.view, { duration: 1.2 });
