@@ -727,6 +727,12 @@ const OLD_MAPS = [
     src: "Nouvelle carte générale des provinces asiatiques de l'Empire Ottoman, Library of Congress" },
   { name: "Trung Hoa, bản đồ in ở Osaka", tiles: "https://allmaps.xyz/maps/467301a03b7f7c4c/{z}/{x}/{y}.png", view: [[18, 76], [54, 141]],
     src: "A map of China, K. Saito, Osaka, David Rumsey Map Collection" },
+  { name: "Ai Cập và sông Nile", tiles: "https://allmaps.xyz/maps/b61754df017f2f6d/{z}/{x}/{y}.png", view: [[23, 29], [31, 37]],
+    src: "Egypt, David Rumsey Map Collection" },
+  { name: "Châu Phi", tiles: "https://allmaps.xyz/maps/de409abb203be3db/{z}/{x}/{y}.png", view: [[-35, -17], [37, 51]],
+    src: "Africa, David Rumsey Map Collection" },
+  { name: "Bắc Mỹ, Mexico và Hoa Kỳ", tiles: "https://allmaps.xyz/maps/4f5a7eb0e452cd9d/{z}/{x}/{y}.png", view: [[7, -133], [60, -53]],
+    src: "Mexico, the British Possessions in North America and the United States, David Rumsey Map Collection" },
 ];
 const oldLayerOf = m => m.tiles
   ? L.tileLayer(m.tiles, { maxNativeZoom: 9, attribution: `Bản đồ cổ: <a href="https://allmaps.org">Allmaps</a>, ${m.src}` })
@@ -757,7 +763,7 @@ let oldLayer = null;
 // A story inside a regional old map can lay it over its small locator; the tightest map wins (Taberd beats China for Hà Nội).
 const area = ([[a, b], [c, d]]) => (c - a) * (d - b);
 const oldMapFor = c => OLD_MAPS.filter(m => m.view && c.lat >= m.view[0][0] && c.lat <= m.view[1][0] && c.lng >= m.view[0][1] && c.lng <= m.view[1][1])
-  .sort((x, y) => area(x.view) - area(y.view))[0];
+  .sort((x, y) => area(x.view) - area(y.view))[0] ?? OLD_MAPS[0]; // Moll 1719 is the one world map drawn over every story spot
 
 // Pin glyphs by kind of story, drawn in a 12x12 box.
 const KINDS = {
